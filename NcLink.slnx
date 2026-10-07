@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="NcLink.ApiServer/NcLink.ApiServer.csproj" />
+  <Project Path="NcLink.Conformance/NcLink.Conformance.csproj" />
+  <Project Path="NcLink.Simulator/NcLink.Simulator.csproj" />
+  <Project Path="NcLink.Tests/NcLink.Tests.csproj" />
+  <Project Path="NcLink/NcLink.csproj" />
+</Solution>
