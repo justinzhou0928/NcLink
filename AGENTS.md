@@ -254,10 +254,27 @@ NcLink/
   `DocsEndpoints.cs`（手写路由 + 键控服务查找 + 手动序列化），而官方脚手架
   只有 `app.MapOpenApi()` + `app.UseSwaggerUI()` 两行。**先看 `dotnet new webapi`
   生成什么、官方文档怎么写，再动手。**
-- **端点按官方文档的分组写法组织**：`app.MapGroup(prefix).MapXxxApi()`，
-  前缀集中在 `Program.cs` 的路由表里，`Endpoints/` 下的文件只放处理器，
-  扩展方法签名是 `public static RouteGroupBuilder MapXxxApi(this RouteGroupBuilder group)`。
-  **不要把前缀藏进扩展方法内部**——那样 `Program.cs` 就看不出有哪些路由了。
+- **API 用 Controller 写，不用 Minimal API。** 判据不是"哪种更新"，而是
+  **厂家（Java Spring）就是 Controller 结构**——用 `Controllers/` 才能两份代码并排看：
+
+  | 我们的 | 厂家的 |
+  |---|---|
+  | `Controllers/V1/DataController` | `controller/v1/DataApi` |
+  | `Controllers/V2/Data2Controller` | `controller/v2/DataApi2` |
+  | `Controllers/ModelController` | `controller/ModelApi`（**一个类挂 `/v1` 与 `/v2`**）|
+  | `Controllers/SampleController` | `controller/SampleApi` |
+
+  - **控制器必须 `public`**：MVC 的默认发现机制只认 public 类型（实测 internal 控制器全部 404）。
+  - **控制器只做路由与协议编解码**，逻辑放 `Engine/` 的 `internal static` 帮助类里
+    （`DataOperations` / `FileOperations`）——internal 类型只出现在方法体内
+    （不进入 public 签名），因此两边规则都满足，不需要框架 hack。
+  - 控制器需要注入的**有状态服务**（如 `ISampleCache`）要抽公开接口放 `Interfaces/`，
+    实现在 `Engine/`——`Engine/` 只放 internal 是硬规则。
+  - **`[ApiController]` 的自动 400 必须关掉**
+    （`SuppressModelStateInvalidFilter = true`）：它返回 `ValidationProblemDetails`，
+    会破坏官方那套 Spring 形状的 400 错误体。
+  - **MVC 生成的 OpenAPI 与 Minimal API 不同**，`MvcQuirksOperationTransformer`
+    负责收口（catch-all 的 `rest` 参数、multipart 请求体）——只含规则，不含端点清单。
 - **能从代码/端点推出来的东西不手写**——同一件事的又一次教训：
   手写的 334 行 Swagger 规范（`ApiDocument.cs`）把端点清单**抄了第二遍**，
   端点一改就漂移。现在整条链路只剩 `app.MapOpenApi()` 一行。

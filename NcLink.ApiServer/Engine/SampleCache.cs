@@ -1,3 +1,4 @@
+using NcLink.ApiServer.Interfaces;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.Json;
@@ -24,7 +25,7 @@ namespace NcLink.ApiServer.Engine;
 /// 连续两次轮询拿到的是<b>不同的单帧</b>（各带不同 <c>beginTime</c>），
 /// 而非累积的多帧，说明取走后即清空。
 /// </summary>
-internal sealed partial class SampleCache : IAsyncDisposable
+internal sealed partial class SampleCache : IAsyncDisposable, ISampleCache
 {
     private readonly IQuery _query;
     private readonly IOptions<ApiServerOptions> _options;

@@ -435,7 +435,11 @@ internal sealed class DocsAndSurfaceComparison(string officialBase, string oursB
             kv => kv.Key,
             kv =>
             {
-                var type = RefName(kv.Value) is "IFormFile" ? "file" : Field(kv.Value, "type") ?? "object";
+                // 文件字段：Swagger 2 写 type:file，OpenAPI 3 写 type:string + format:binary
+                // （也可能 $ref 到 IFormFile）——三种写法归一成同一个说法
+                var type = RefName(kv.Value) is "IFormFile" || Field(kv.Value, "format") == "binary"
+                    ? "file"
+                    : Field(kv.Value, "type") ?? "object";
                 return (Type: type, Required: required.Contains(kv.Key));
             },
             StringComparer.Ordinal);

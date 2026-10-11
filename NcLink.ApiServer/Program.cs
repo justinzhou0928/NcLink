@@ -1,4 +1,3 @@
-using NcLink.ApiServer.Endpoints;
 using NcLink.ApiServer.Engine;
 using NcLink.ApiServer.Models;
 using NcLink.Extensions;
@@ -22,7 +21,16 @@ builder.Services.AddNcLinkMqtt(o => o.BrokerAddress = options.BrokerAddress);
 builder.Services.AddNcLink(o => o.RequestTimeout = TimeSpan.FromMilliseconds(options.DefaultRequestTimeoutMs));
 
 // 服务端特有：采样缓存
-builder.Services.AddSingleton<SampleCache>();
+builder.Services.AddSingleton<NcLink.ApiServer.Interfaces.ISampleCache,
+    NcLink.ApiServer.Engine.SampleCache>();
+
+// 控制器 + v1/v2 共用的实现（控制器保持薄，逻辑在服务里）
+builder.Services.AddControllers();
+
+// [ApiController] 默认把模型绑定失败变成 ValidationProblemDetails，那会破坏
+// 官方那套 Spring 形状的 400 错误体。关掉它，400 由控制器自己给（ApiError.BadRequest）。
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(o =>
+    o.SuppressModelStateInvalidFilter = true);
 
 // 响应形状必须与官方逐字段一致，因此关掉命名策略、保留显式 JsonPropertyName
 builder.Services.ConfigureHttpJsonOptions(o =>
@@ -35,11 +43,22 @@ builder.Services.ConfigureHttpJsonOptions(o =>
         System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
 });
 
-// API 文档：由内置生成器从<b>端点</b>自动生成 OpenAPI 3，再转成官方那样的 Swagger 2.0。
-// 端点清单不抄第二遍——新增端点自动进文档；命名惯例由转换器按路由推。
+// 控制器走的是 MVC 的 JSON 选项，与上面 ConfigureHttpJsonOptions 是两套，
+// 必须同样关掉命名策略并保留中文，否则控制器返回的 JSON 会与 v1 不一致。
+builder.Services.AddControllers().AddJsonOptions(o =>
+{
+    o.JsonSerializerOptions.PropertyNamingPolicy = null;
+    o.JsonSerializerOptions.DefaultIgnoreCondition =
+        System.Text.Json.Serialization.JsonIgnoreCondition.Never;
+    o.JsonSerializerOptions.Encoder =
+        System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+});
+
+// API 文档：由内置生成器从真实端点自动生成 OpenAPI 3。
 builder.Services.AddOpenApi("v1", o =>
 {
     o.AddDocumentTransformer<NcLink.ApiServer.Engine.ApiDocs.ApiDocumentTransformer>();
+    o.AddOperationTransformer<NcLink.ApiServer.Engine.ApiDocs.MvcQuirksOperationTransformer>();
 });
 
 var app = builder.Build();
@@ -85,17 +104,8 @@ app.UseStatusCodePages(async context =>
 app.MapOpenApi();
 app.UseSwaggerUI(o => o.SwaggerEndpoint("/openapi/v1.json", "NcLink ApiServer"));
 
-// 路由表：前缀集中在这里，端点处理器在 Endpoints/ 下按功能分文件。
-// 这是官方文档推荐的分组写法（app.MapGroup(prefix).MapXxxApi()），
-// 好处是"有哪些前缀"一眼可见，不必翻每个文件。
-app.MapGroup("/v1/{device_id}/data").MapDataApi();
-app.MapGroup("/v1/{device_id}/file").MapFileApi();
-app.MapGroup("/v1/{device_id}/model").MapModelApi();
-app.MapGroup("/v1/sample/{device_id}").MapSampleApi();
-
-app.MapGroup("/v2/{device_id}/data").MapDataApi2();
-app.MapGroup("/v2/{device_id}/file").MapFileApi2();
-app.MapGroup("/v2/{device_id}/model").MapModelApi2();
+// 路由由控制器上的 [Route] 声明，与厂家结构一一对应（对照表见 AGENTS.md）
+app.MapControllers();
 
 // 便于运维与对比验证
 app.MapGet("/", () => Results.Text(

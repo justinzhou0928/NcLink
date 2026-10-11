@@ -193,6 +193,24 @@
      `ResolveSizeAsync` 拿到 0、下载出空内容、上层误报成功。
      已修（非对象即"取不到信息"，跳过而不是造假），并补两个回归测试。
      文件错误的外部文案改用官方的**固定字符串**（v1/v2 各一份），真实原因只进日志。
+- **API 层从 Minimal API 迁到 Controller。** 判据不是"哪种更新"，而是
+  **厂家（Java Spring）就是 Controller 结构**——迁移后两份代码可以并排看：
+  `Controllers/V1/DataController` ↔ `controller/v1/DataApi`、
+  `Controllers/V2/Data2Controller` ↔ `controller/v2/DataApi2`、
+  `Controllers/ModelController` ↔ `controller/ModelApi`、
+  `Controllers/SampleController` ↔ `controller/SampleApi`。
+  搬过去才发现：**厂家的 `ModelApi` 是同一个类挂 `/v1` 和 `/v2` 两个前缀**——
+  这正是 v1/v2 模型接口逐字节相同的原因，我们此前拆成两个文件是没看懂这层关系。
+  同时发现 `SampleApi` 的三个方法**都接受 GET 与 POST**（我们只映射了其一）。
+  - 控制器只做路由与编解码，逻辑抽到 `Engine/` 的 `internal static`
+    `DataOperations` / `FileOperations`。
+  - 有状态的 `SampleCache` 抽了公开接口 `ISampleCache`（放 `Interfaces/`），
+    实现留在 `Engine/`——控制器必须 `public`（MVC 只发现 public 类型，实测 internal 全 404），
+    而 `Engine/` 只放 internal 是硬规则，两者靠接口调和。
+  - 关掉 `[ApiController]` 的自动 400（它会返回 `ValidationProblemDetails`，
+    破坏已实测对齐的 Spring 错误体）。
+  - 新增 `MvcQuirksOperationTransformer` 收口 MVC 与 Minimal API 的文档差异
+    （catch-all 多出的 `rest` 必填参数、被展开坏的 multipart 请求体）。
 - **立场转变：从"忠实复刻官方"改为"官方正确处对齐，坏处修好"。**
   触发点是反编译了厂家 jar（`nclink-api-server-0.3.10.jar` 内含
   `nclink-core-2.1.3.jar`，142 个类），拿到了权威实现而非实测推断。
