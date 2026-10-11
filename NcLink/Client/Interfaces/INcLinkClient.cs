@@ -1,5 +1,4 @@
 using NcLink.Client.Connection.Engine;
-using NcLink.Client.Devices.Models;
 using NcLink.Client.Files.Interfaces;
 using NcLink.Client.Query.Interfaces;
 using NcLink.Client.Set.Interfaces;

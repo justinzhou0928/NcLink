@@ -16,7 +16,7 @@ public abstract class NcLinkException : Exception
     {
     }
 
-    protected NcLinkException(string message, Exception innerException) : base(message, innerException)
+    protected NcLinkException(string message, Exception? innerException) : base(message, innerException)
     {
     }
 
@@ -36,7 +36,7 @@ public abstract class NcLinkRequestException : NcLinkException
     {
     }
 
-    protected NcLinkRequestException(string message, Exception innerException) : base(message, innerException)
+    protected NcLinkRequestException(string message, Exception? innerException) : base(message, innerException)
     {
     }
 }
@@ -72,8 +72,8 @@ public sealed class NcLinkModelPathNotFoundException : NcLinkRequestException
 /// <summary>请求参数非法（在发出前就被拦下）。</summary>
 public sealed class NcLinkInvalidRequestException : NcLinkRequestException
 {
-    public NcLinkInvalidRequestException(string message, Exception? innerException = null)
-        : base(message, innerException ?? new ArgumentException(message))
+    public NcLinkInvalidRequestException(string message)
+        : base(message)
     {
     }
 }
@@ -89,7 +89,7 @@ public abstract class NcLinkDeviceException : NcLinkException
     {
     }
 
-    protected NcLinkDeviceException(string message, Exception innerException) : base(message, innerException)
+    protected NcLinkDeviceException(string message, Exception? innerException) : base(message, innerException)
     {
     }
 }
@@ -127,8 +127,8 @@ public sealed class NcLinkDeviceRejectedException : NcLinkDeviceException
 /// <summary>传输未连接或连接已断开。</summary>
 public sealed class NcLinkNotConnectedException : NcLinkDeviceException
 {
-    public NcLinkNotConnectedException(string endpoint, Exception? innerException = null)
-        : base($"尚未连接到 MQTT Broker：{endpoint}", innerException ?? new InvalidOperationException(endpoint))
+    public NcLinkNotConnectedException(string endpoint)
+        : base($"尚未连接到 MQTT Broker：{endpoint}")
     {
         Endpoint = endpoint;
     }
@@ -140,11 +140,10 @@ public sealed class NcLinkNotConnectedException : NcLinkDeviceException
 public sealed class NcLinkProtocolException : NcLinkDeviceException
 {
     public NcLinkProtocolException(string message, string? topic = null, Exception? innerException = null)
-        : base(message, innerException ?? new InvalidOperationException(message))
+        : base(message, innerException)
     {
         Topic = topic;
     }
+}
 
 #endregion
-
-}

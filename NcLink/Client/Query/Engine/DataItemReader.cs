@@ -1,7 +1,7 @@
+using NcLink.Client.Devices.Models;
 using NcLink.Client.Connection.Engine;
 using NcLink.Client.Connection.Exceptions;
 using NcLink.Client.Devices.Engine;
-using NcLink.Client.Devices.Models;
 using NcLink.Client.Query.Interfaces;
 using NcLink.Client.Query.Models;
 using NcLink.Protocol;
@@ -79,18 +79,9 @@ internal sealed class DataItemReader : IQuery, IDataItemReader
             }).ToList()
         };
 
-        var topic = _topics.QueryRequest(deviceId);
-        var response = await _pipeline.SendAsync(
-            topic,
-            new RequestContext(topic, string.Empty, deviceId, resolved.Select(r => r.ItemId).ToArray()),
-            request,
-            matcher: static ctx => DataItemMessages.IsExpectedResponse(ctx, "\"values\""),
-            timeout: timeout,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        var message = _codec.Decode<QueryResponseMessage>(response.Payload)
-                      ?? throw new NcLinkProtocolException(
-                          $"查询响应解析失败：{response.Topic}", topic: response.Topic);
+        var message = await DataItemMessages.ExchangeAsync<QueryResponseMessage>(
+            _pipeline, _codec, _topics.QueryRequest(deviceId), deviceId, resolved, request,
+            "\"values\"", "查询", timeout, cancellationToken).ConfigureAwait(false);
 
         var results = new List<DataItemResult>();
         foreach (var value in message.Values ?? [])

@@ -35,7 +35,7 @@ public sealed class RequestCorrelatorTests
             NullLogger<RequestCorrelator>.Instance);
 
     private static RequestContext ContextFor(string deviceId, params string[] itemIds)
-        => new(Topics.QueryRequest(deviceId), correlationId: string.Empty, deviceId, itemIds);
+        => new(Topics.QueryRequest(deviceId), deviceId, itemIds);
 
     private static QueryRequestMessage BuildQuery(string itemId)
         => new()

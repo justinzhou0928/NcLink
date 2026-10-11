@@ -1,4 +1,3 @@
-using NcLink;
 using NcLink.Protocol;
 using NcLink.Protocol.Contracts;
 using Microsoft.Extensions.Logging;
@@ -201,7 +200,7 @@ internal sealed class FileTransfer : IFileTransfer
             // 直接传切片给 BytesToHex（它收 ReadOnlySpan<byte>），
             // 不必先 ToArray() 复制一份 50 KiB 的分块。
             await SetAsync(deviceId, NcLinkOperation.SetValue, cancellationToken,
-                key: targetPath, offset: offset,
+                key: targetPath, offset: offset, length: length,
                 value: BytesToHex(content.AsSpan((int)offset, length))).ConfigureAwait(false);
 
             offset += length;
@@ -269,6 +268,7 @@ internal sealed class FileTransfer : IFileTransfer
         CancellationToken cancellationToken,
         string? key = null,
         long? offset = null,
+        long? length = null,
         string? value = null)
     {
         var item = new DataItemRequest
@@ -277,6 +277,7 @@ internal sealed class FileTransfer : IFileTransfer
             Operation = operation,
             Keys = key is null ? null : [key],
             Offset = offset,
+            Length = length,
             Value = value
         };
 

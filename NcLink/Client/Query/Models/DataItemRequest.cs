@@ -1,5 +1,5 @@
-using NcLink.Protocol.Contracts;
 using NcLink.Client.Devices.Models;
+using NcLink.Protocol.Contracts;
 
 namespace NcLink.Client.Query.Models;
 

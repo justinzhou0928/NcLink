@@ -47,6 +47,14 @@ public sealed class DataResponse
     /// <summary>厂家 <c>REQUEST_ERR_KEY</c>：<c>key</c> 为空串。</summary>
     public const int CodeRequestBadKey = 5;
 
+    /// <summary>
+    /// 文件下载的 <c>length</c>/<c>offset</c> 越界。
+    ///
+    /// 厂家复用 <c>REQUEST_ERR_NULL_ITEM</c>(1)——语义上并不贴切（那不是"缺 items"），
+    /// 但对外必须一致，所以这里另起名字而不是照抄那个错名。
+    /// </summary>
+    public const int CodeRequestInvalidRange = CodeRequestItemsMissing;
+
     /// <summary>厂家 <c>REQUEST_ERR_TIMEOUT</c>。</summary>
     public const int CodeRequestTimeout = 6;
 

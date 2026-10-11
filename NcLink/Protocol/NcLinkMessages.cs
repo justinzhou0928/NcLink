@@ -154,6 +154,16 @@ public sealed class SetParamsMessage
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Offset { get; set; }
 
+    /// <summary>
+    /// 本块长度（厂家 <c>SetParams.length</c>）。
+    ///
+    /// 文件下发时每块都带它，且厂家要求响应回显 <c>offset</c> 与 <c>length</c>
+    /// 才认这一块；缺了它，<c>value</c> 的十六进制串长度就无从校验。
+    /// </summary>
+    [JsonPropertyName("length")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Length { get; set; }
+
     [JsonPropertyName("value")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public System.Text.Json.JsonElement? Value { get; set; }

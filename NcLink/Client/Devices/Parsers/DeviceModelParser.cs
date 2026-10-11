@@ -1,6 +1,6 @@
+using NcLink.Client.Devices.Models;
 using System.Text.Json;
 using NcLink.Protocol;
-using NcLink.Client.Devices.Models;
 
 namespace NcLink.Client.Devices.Parsers;
 

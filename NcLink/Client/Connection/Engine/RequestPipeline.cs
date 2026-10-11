@@ -82,7 +82,7 @@ internal sealed partial class RequestPipeline : IRequestPipeline, IDisposable
 
         await EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
 
-        var requestContext = new RequestContext(topic, correlationId: string.Empty, context.DeviceId, context.ItemIds);
+        var requestContext = new RequestContext(topic, context.DeviceId, context.ItemIds);
 
         // 严格与降级两条路径都要求语义校验通过：
         // @id 的归属判定由关联器负责；只有设备没回显 @id 时才走降级匹配。

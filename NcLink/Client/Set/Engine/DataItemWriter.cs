@@ -55,18 +55,9 @@ internal sealed class DataItemWriter : ISet, IDataItemWriter
             }).ToList()
         };
 
-        var topic = _topics.SetRequest(deviceId);
-        var response = await _pipeline.SendAsync(
-            topic,
-            new RequestContext(topic, string.Empty, deviceId, resolved.Select(r => r.ItemId).ToArray()),
-            request,
-            matcher: static ctx => DataItemMessages.IsExpectedResponse(ctx, "\"results\""),
-            timeout: timeout,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        var message = _codec.Decode<SetResponseMessage>(response.Payload)
-                      ?? throw new NcLinkProtocolException(
-                          $"设置响应解析失败：{response.Topic}", topic: response.Topic);
+        var message = await DataItemMessages.ExchangeAsync<SetResponseMessage>(
+            _pipeline, _codec, _topics.SetRequest(deviceId), deviceId, resolved, request,
+            "\"results\"", "设置", timeout, cancellationToken).ConfigureAwait(false);
 
         return (message.Results ?? [])
             .Select(r => new SetItemResult(r.Id ?? string.Empty, r.IsOk, r.Reason))

@@ -38,7 +38,7 @@ internal sealed partial class DeviceProbe : IDeviceProbe
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
 
         var topic = _topics.ProbeQueryRequest(deviceId);
-        var context = new RequestContext(topic, correlationId: string.Empty, deviceId, itemIds: []);
+        var context = new RequestContext(topic, deviceId, []);
 
         var response = await _pipeline.SendAsync(
             topic,

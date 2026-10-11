@@ -157,6 +157,29 @@ public sealed class DeviceModelCacheTests
         await Assert.ThrowsAnyAsync<ArgumentException>(() => cache.GetAsync("  "));
     }
 
+    [Fact]
+    public async Task ConcurrentGet_WhenFirstCallerCancels_ShouldNotCancelOthers()
+    {
+        // 回归：共享探测任务曾经闭包捕获"第一个调用方"的取消令牌，
+        // 于是 A 取消会把 B 一起打成取消——尽管 B 自己的令牌从未取消。
+        // 现在共享任务用 CancellationToken.None，取消只作用于各自的等待。
+        var probe = new CountingProbe { DelayMs = 120 };
+        var cache = new DeviceModelCache(probe, NullLogger<DeviceModelCache>.Instance);
+
+        using var first = new CancellationTokenSource();
+        var firstCall = cache.GetAsync(Device, cancellationToken: first.Token);
+        var secondCall = cache.GetAsync(Device);
+
+        first.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => firstCall);
+
+        // 第二个调用方不受影响，且两者共用同一次探测
+        var model = await secondCall.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(Device, model.DeviceId);
+        Assert.Equal(1, probe.CallCount);
+    }
+
     /// <summary>可计数的假探测：可选地延迟、可选地失败若干次。</summary>
     private sealed class CountingProbe : IDeviceProbe
     {

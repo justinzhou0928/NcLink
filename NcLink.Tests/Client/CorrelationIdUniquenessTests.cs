@@ -170,7 +170,7 @@ public sealed class CorrelationIdUniquenessTests
         => new() { Id = id, Params = new QueryParamsMessage { Indexes = ["0"] } };
 
     private static RequestContext Context(string deviceId, string itemId)
-        => new(NcLinkTopics.Default.QueryRequest(deviceId), correlationId: string.Empty, deviceId, [itemId]);
+        => new(NcLinkTopics.Default.QueryRequest(deviceId), deviceId, [itemId]);
 
     private static string Response(string itemId, string? correlationId)
         => NcLinkJson.Serialize(new QueryResponseMessage

@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using NcLink;
 using NcLink.Protocol.Contracts;
 using NcLink.Protocol;
 using Microsoft.Extensions.Logging;

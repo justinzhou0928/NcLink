@@ -1,7 +1,6 @@
 using System.Text;
 using MQTTnet;
 using MQTTnet.Protocol;
-using NcLink;
 using NcLink.Protocol.Contracts;
 using NcLink.Client.Connection.Exceptions;
 

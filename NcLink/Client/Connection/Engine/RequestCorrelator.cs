@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using NcLink;
 using NcLink.Protocol.Contracts;
 using NcLink.Protocol;
 using Microsoft.Extensions.Logging;
@@ -25,7 +24,7 @@ namespace NcLink.Client.Connection.Engine;
 /// 之所以强调顺序与主题校验：若只按「报文里出现设备 SN」之类的弱特征兜底，
 /// 设备掉线时的<b>迟到响应</b>会被后续请求领走，表现为「已掉线的设备仍返回成功」。
 /// </summary>
-internal sealed partial class RequestCorrelator : IRequestCorrelator
+internal sealed partial class RequestCorrelator
 {
     private readonly INcLinkTransport _transport;
     private readonly INcLinkCodec _codec;
@@ -89,6 +88,23 @@ internal sealed partial class RequestCorrelator : IRequestCorrelator
         => _deviceActivity.TryGetValue(deviceId, out var at)
            && _timeProvider.GetUtcNow() - at <= _options.ActivityWindow;
 
+    /// <summary>
+    /// 发送请求并等待响应。
+    /// </summary>
+    /// <param name="request">请求报文（其 <c>CorrelationId</c> 会被填写）。</param>
+    /// <param name="context">
+    /// 匹配上下文：<see cref="RequestContext.ResponseTopic"/> 等字段由关联器回填，
+    /// 匹配器通过 <paramref name="strictMatcher"/> / <paramref name="fallbackMatcher"/> 读取。
+    /// </param>
+    /// <param name="strictMatcher">
+    /// 严格匹配时附加的语义校验（可选）。当 <c>@id</c> 命中且响应主题归属正确时调用；
+    /// 未提供则以 <c>@id</c> 为准。
+    /// </param>
+    /// <param name="fallbackMatcher">
+    /// 降级匹配：仅当没有任何严格匹配命中时才使用，且仅在响应<b>未携带</b> <c>@id</c> 时生效
+    /// （携带了不匹配的 <c>@id</c> 说明该响应属于其它请求，绝不可认领）。
+    /// </param>
+    /// <param name="timeout">超时时间；为 null 时用默认值。</param>
     public async Task<RawMessage> SendAsync(
         NcLinkEnvelope request,
         RequestContext context,
@@ -262,7 +278,7 @@ internal sealed partial class RequestCorrelator : IRequestCorrelator
 
             // 可选：调用方给出更严格的语义校验。
             // 未提供时以 @id 为准（关联 id 全局唯一，命中即唯一对应）。
-            var context = _context.For(topic, text);
+            var context = _context.For(text);
             context.CorrelationMatched = true;
             return _strictMatcher?.Invoke(context) ?? true;
         }
@@ -283,7 +299,7 @@ internal sealed partial class RequestCorrelator : IRequestCorrelator
             // 例如文件下载拿到非十六进制内容。
             if (ContainsAnyCorrelationId(text, out var echoed)) return false;
 
-            var context = _context.For(topic, text);
+            var context = _context.For(text);
             context.CorrelationMatched = false;
             return FallbackMatcher(context);
         }

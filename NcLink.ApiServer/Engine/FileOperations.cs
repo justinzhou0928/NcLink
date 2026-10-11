@@ -24,7 +24,15 @@ internal static class FileOperations
         public static DownloadResult Failed(DataResponse error) => new(null, error);
     }
 
-    /// <summary>下载文件。取不到大小（文件不存在）时返回 <c>code 13</c>。</summary>
+    /// <summary>
+    /// 下载文件。取不到大小（文件不存在）时返回 <c>code 13</c>。
+    ///
+    /// <b><c>offset</c> 与 <c>length</c> 必须成对出现</b>：官方 <c>DataApi.fileRequest</c>
+    /// 只在两者都给时才按段返回，只给一个时<b>两个都忽略</b>
+    /// （<c>item.offset = 0</c>、<c>length</c> 保持 null），
+    /// 因此单给 <c>length=5</c> 拿到的仍是<b>整个文件</b>。
+    /// 越界（<c>length &gt; size</c> 或 <c>length + offset &gt; size</c>）返回 <c>code 1</c>。
+    /// </summary>
     public static async Task<DownloadResult> DownloadAsync(
         string deviceId,
         string key,
@@ -39,16 +47,23 @@ internal static class FileOperations
             var bytes = await files.DownloadAsync(deviceId, key, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            // offset/length 是分块参数：给了就只返回该段
-            if (offset is > 0 || length is > 0)
+            // offset/length 必须成对：只给一个时官方两个都忽略（见方法注释）
+            if (offset is null || length is null) return DownloadResult.Ok(bytes);
+
+            var size = bytes.Length;
+            var from = offset.Value;
+            var take = length.Value;
+
+            if (take > size || take + from > size)
             {
-                var from = Math.Max(0, offset ?? 0);
-                if (from >= bytes.Length) return DownloadResult.Ok([]);
-                var count = Math.Min(length ?? (bytes.Length - from), bytes.Length - from);
-                bytes = bytes.AsSpan(from, count).ToArray();
+                ApiServerLog.LogBadDataRequest(
+                    logger, $"文件取段越界：length={take} offset={from} size={size}");
+                return DownloadResult.Failed(DataResponse.Fail(
+                    DataResponse.CodeRequestInvalidRange,
+                    "the length or offset of the request item is invalid"));
             }
 
-            return DownloadResult.Ok(bytes);
+            return DownloadResult.Ok(bytes.AsSpan(from, take).ToArray());
         }
         catch (Exception e)
         {

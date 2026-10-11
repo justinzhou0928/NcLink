@@ -1,9 +1,9 @@
+using NcLink.Client.Devices.Models;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NcLink.Client.Connection.Exceptions;
 using NcLink.Client.Devices.Interfaces;
-using NcLink.Client.Devices.Models;
 using NcLink.Protocol;
 using NcLink.Client.Devices.Parsers;
 
@@ -103,18 +103,24 @@ internal sealed class DeviceModelCache
     /// 即使两个线程同时通过 <c>TryGetValue</c> 未命中并各自 <c>GetOrAdd</c>，
     /// <see cref="Lazy{T}"/> 也只会让其中一个执行工厂方法
     /// （另一个拿到已缓存的那个 <see cref="Lazy{T}"/> 实例）。
+    ///
+    /// <b>共享的探测任务刻意不接收任何调用方的取消令牌</b>：工厂只执行一次，
+    /// 若把第一个调用方的令牌闭包进去，它就成了所有等待方共用的令牌——
+    /// A 取消会把 B/C/D 一起打成取消，而它们的令牌从未取消过。
+    /// 取消因此放在等待侧：每个调用方用自己的令牌 <c>WaitAsync</c>，
+    /// 互不影响；探测本身则跑完并写进缓存（幂等，最多多一次 MQTT 往返）。
     /// </summary>
     private async Task<DeviceModel> ProbeCoalescedAsync(
         string deviceId, TimeSpan? timeout, CancellationToken cancellationToken)
     {
         var lazy = _inFlight.GetOrAdd(deviceId,
             id => new Lazy<Task<DeviceModel>>(
-                () => ProbeCoreAsync(id, timeout, cancellationToken),
+                () => ProbeCoreAsync(id, timeout, CancellationToken.None),
                 LazyThreadSafetyMode.ExecutionAndPublication));
 
         try
         {
-            return await lazy.Value.ConfigureAwait(false);
+            return await lazy.Value.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {

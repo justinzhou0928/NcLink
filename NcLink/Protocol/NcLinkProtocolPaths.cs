@@ -1,4 +1,3 @@
-using NcLink.Client.Devices.Models;
 namespace NcLink.Protocol;
 
 /// <summary>
