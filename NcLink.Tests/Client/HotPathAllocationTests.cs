@@ -50,6 +50,7 @@ public sealed class HotPathAllocationTests
             $"字节级查找应显著更省：字符串 {stringBytes} / 字节 {spanBytes}");
     }
 
+
     private static long Measure(Func<bool> action)
     {
         GC.Collect();
