@@ -193,6 +193,15 @@
      `ResolveSizeAsync` 拿到 0、下载出空内容、上层误报成功。
      已修（非对象即"取不到信息"，跳过而不是造假），并补两个回归测试。
      文件错误的外部文案改用官方的**固定字符串**（v1/v2 各一份），真实原因只进日志。
+- **确立并执行「对外一致 / 对内 .NET 标准」的边界。** 上一轮迁 Controller 时
+  我过度镜像了厂家的**命名与架构**，把"一一对应"当成了目标本身。已纠正：
+  - `Data2Controller` → `DataController`（`2` 是 Java 时代的产物；.NET 用命名空间区分版本）
+  - `device_id`/`channel_id`/`sub_id` → `deviceId`/`channelId`/`subId`（C# 约定；
+    **URL 完全相同**，路由模板里的占位符名不影响路径）
+  - 注释里"厂家这样写"一律改掉；**理由只能是"这是对外用法"或"这是 .NET 标准"**
+  - 比对器同步：**路径参数名不再作为契约**（按归一化后的模板比）
+  边界写进了 `AGENTS.md`：对外（URL/方法/参数位置/请求体/响应/错误码）必须一致；
+  对内（类名/文件组织/DI/分层）按 .NET 标准，**厂家的架构不是优解，不照搬**。
 - **API 层从 Minimal API 迁到 Controller。** 判据不是"哪种更新"，而是
   **厂家（Java Spring）就是 Controller 结构**——迁移后两份代码可以并排看：
   `Controllers/V1/DataController` ↔ `controller/v1/DataApi`、

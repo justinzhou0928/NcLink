@@ -254,27 +254,47 @@ NcLink/
   `DocsEndpoints.cs`（手写路由 + 键控服务查找 + 手动序列化），而官方脚手架
   只有 `app.MapOpenApi()` + `app.UseSwaggerUI()` 两行。**先看 `dotnet new webapi`
   生成什么、官方文档怎么写，再动手。**
-- **API 用 Controller 写，不用 Minimal API。** 判据不是"哪种更新"，而是
-  **厂家（Java Spring）就是 Controller 结构**——用 `Controllers/` 才能两份代码并排看：
+- **对官方：只保证"用法一致"，不照抄架构。** 这是本仓库最重要的一条边界：
 
-  | 我们的 | 厂家的 |
+  | | 判据 |
   |---|---|
-  | `Controllers/V1/DataController` | `controller/v1/DataApi` |
-  | `Controllers/V2/Data2Controller` | `controller/v2/DataApi2` |
-  | `Controllers/ModelController` | `controller/ModelApi`（**一个类挂 `/v1` 与 `/v2`**）|
-  | `Controllers/SampleController` | `controller/SampleApi` |
+  | **对外**：URL、HTTP 方法、参数位置、请求体形状、响应形状、错误码 | **必须与官方一致**（否则不能替换）|
+  | **对外样式**：Controller + 特性路由，不用 Minimal API | **与官方一致**（厂家的 Java 就是 Controller）|
+  | **对内**：类名、文件组织、DI、依赖传递、分层 | **按 .NET 标准，可以且应该优于厂家** |
+
+  **厂家的架构和代码不是优解，不要照搬。** 已犯过的错：
+
+  - 抄了厂家的类名 `DataApi2` → 写成 `Data2Controller`。那个 `2` 是 Java 时代的产物；
+    .NET 用命名空间区分版本（`Controllers/V1/DataController`、`Controllers/V2/DataController`）。
+  - 抄了 Java 的 `device_id` 参数名。C# 约定是 `deviceId`——**URL 完全相同**
+    （路由模板里的占位符名不影响路径），所以这不是对外的，纯属自找的 Java 味。
+  - 注释里把"厂家这样写"当成理由。**理由只能是"这是对外用法"或"这是 .NET 标准"**，
+    不能是"厂家这样"。
+  - 厂家的 `DataApi` 把数据和文件塞在一个类里、方法体直接操作 MQTT 客户端；
+    我们分成 `DataController` + `FileController` 的职责边界更清楚。
+
+  反过来，**对外的形状一处都不能少**：官方 `SampleApi` 三个方法都声明了
+  GET 与 POST，那就是"用得上的调用方式"，必须照齐（这不是照抄注解）。
+
+- **API 用 Controller 写。** 控制器是 MVC 惯例，也是厂家的形态：
+  `Controllers/**` 下按版本放，`[ApiController]` + `[HttpGet]`/`[HttpPost]` 特性路由。
 
   - **控制器必须 `public`**：MVC 的默认发现机制只认 public 类型（实测 internal 控制器全部 404）。
-  - **控制器只做路由与协议编解码**，逻辑放 `Engine/` 的 `internal static` 帮助类里
+  - **控制器只做路由与协议编解码**，逻辑放 `Engine/` 的 `internal static` 帮助类
     （`DataOperations` / `FileOperations`）——internal 类型只出现在方法体内
     （不进入 public 签名），因此两边规则都满足，不需要框架 hack。
-  - 控制器需要注入的**有状态服务**（如 `ISampleCache`）要抽公开接口放 `Interfaces/`，
+  - 控制器需要注入的**有状态服务**（如 `ISampleCache`）抽公开接口放 `Interfaces/`，
     实现在 `Engine/`——`Engine/` 只放 internal 是硬规则。
   - **`[ApiController]` 的自动 400 必须关掉**
     （`SuppressModelStateInvalidFilter = true`）：它返回 `ValidationProblemDetails`，
     会破坏官方那套 Spring 形状的 400 错误体。
+  - **控制器用的是 MVC 的 JSON 选项**，与 `ConfigureHttpJsonOptions` 是两套，
+    必须都配（否则控制器返回的中文会被转义、字段名会被重命名）。
   - **MVC 生成的 OpenAPI 与 Minimal API 不同**，`MvcQuirksOperationTransformer`
     负责收口（catch-all 的 `rest` 参数、multipart 请求体）——只含规则，不含端点清单。
+  - **路径参数名不属于契约**：`{device_id}` 与 `{deviceId}` 产出的 URL 相同，
+    `check` 因此按归一化后的模板比对（见 `DocsAndSurfaceComparison`）。
+
 - **能从代码/端点推出来的东西不手写**——同一件事的又一次教训：
   手写的 334 行 Swagger 规范（`ApiDocument.cs`）把端点清单**抄了第二遍**，
   端点一改就漂移。现在整条链路只剩 `app.MapOpenApi()` 一行。

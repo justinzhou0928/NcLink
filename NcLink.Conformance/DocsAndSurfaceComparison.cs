@@ -239,8 +239,11 @@ internal sealed class DocsAndSurfaceComparison(string officialBase, string oursB
             {
                 if (op.Name is not ("get" or "post" or "put" or "delete")) continue;
 
-                // 官方（Springfox）写 **，我们的路由写 {rest}——同一个 catch-all
+                // 路径模板归一：官方（Springfox）写 **，MVC 写 {rest}；
+                // 再把所有 {xxx} 抹成 {}——**路径参数名不属于契约**，
+                // {device_id} 与 {deviceId} 产出的 URL 完全相同。
                 var normalized = path.Name.Replace("/**", "/{rest}", StringComparison.Ordinal);
+                normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"\{[^}]*\}", "{}");
                 result[$"{op.Name.ToUpperInvariant()} {normalized}"] = op.Value;
             }
         }
@@ -315,6 +318,10 @@ internal sealed class DocsAndSurfaceComparison(string officialBase, string oursB
         {
             var inOfficial = officialParams.TryGetValue(name, out var a);
             var inOurs = ourParams.TryGetValue(name, out var b);
+
+            // path 参数（device_id 之类）由上面的路径模板比对覆盖；
+            // 它的名字只是模板里的占位符，不构成契约——.NET 侧按约定叫 deviceId。
+            if ((inOfficial && a.In == "path") || (inOurs && b.In == "path")) continue;
 
             // 只有"报文里真正要带的"才算契约：请求体与表单字段。
             // 查询/路径参数**不作为失败**——官方在 data 端点声明的那 6 个查询参数

@@ -8,12 +8,10 @@ using NcLink.Client.Query.Interfaces;
 namespace NcLink.ApiServer.Controllers;
 
 /// <summary>
-/// 模型接口，对应厂家的 <c>cn.nerc.nclink.apiserver.controller.ModelApi</c>。
+/// 模型接口。
 ///
-/// <b>厂家是同一个类同时挂 <c>/v1</c> 与 <c>/v2</c> 两个前缀</b>
-/// （<c>@RequestMapping(value={"/v1", "v2"})</c>）——这正是 v1 与 v2 模型接口
-/// <b>逐字节相同</b>的原因。我们此前拆成两个文件，是没看懂这层关系；
-/// 现在照厂家做成一个类挂两个前缀，差异原因就在代码里自明了。
+/// <b>一个类挂 <c>/v1</c> 与 <c>/v2</c> 两个前缀</b>：两个版本的模型接口对外
+/// <b>完全相同</b>，按版本拆成两个类只会产生重复实现。挂两个前缀让这件事在代码里自明。
 /// </summary>
 [ApiController]
 [Route("/v1")]
@@ -23,12 +21,12 @@ public sealed class ModelController(
     ILogger<ModelController> logger) : ControllerBase
 {
     /// <summary>取设备模型。对应官方 <c>getModel(deviceId)</c>。</summary>
-    [HttpGet("{device_id}/model")]
-    public async Task<IActionResult> GetModelAsync(string device_id, CancellationToken cancellationToken)
+    [HttpGet("{deviceId}/model")]
+    public async Task<IActionResult> GetModelAsync(string deviceId, CancellationToken cancellationToken)
     {
         try
         {
-            var model = await query.GetModelAsync(device_id, refresh: false, cancellationToken)
+            var model = await query.GetModelAsync(deviceId, refresh: false, cancellationToken)
                 .ConfigureAwait(false);
 
             // 官方是把模型解析成 Java POJO 再序列化的，因此输出补了 dataName、
@@ -45,23 +43,23 @@ public sealed class ModelController(
         }
         catch (Exception e)
         {
-            ApiServerLog.LogOperationFailed(logger, device_id, "getModel", e.Message);
+            ApiServerLog.LogOperationFailed(logger, deviceId, "getModel", e.Message);
             return Ok(DataResponse.Fail(DataResponse.CodeExecuteFailed));
         }
     }
 
     /// <summary>注入模型，跳过探测。对应官方 <c>setModel(deviceId, timeout, RootNode)</c>。</summary>
-    [HttpPost("{device_id}/model")]
-    [HttpPut("{device_id}/model")]
+    [HttpPost("{deviceId}/model")]
+    [HttpPut("{deviceId}/model")]
     public async Task<IActionResult> SetModelAsync(
-        string device_id,
+        string deviceId,
         [FromBody] JsonElement model,
         CancellationToken cancellationToken)
     {
         try
         {
             if (!NcLink.Client.Devices.Parsers.DeviceModelParser.TryParse(
-                    model.GetRawText(), device_id, out var parsed, out var error))
+                    model.GetRawText(), deviceId, out var parsed, out var error))
             {
                 ApiServerLog.LogBadDataRequest(logger, $"模型解析失败：{error}");
                 return Ok(DataResponse.Fail(DataResponse.CodeRequestBadPath));
@@ -73,7 +71,7 @@ public sealed class ModelController(
         }
         catch (Exception e)
         {
-            ApiServerLog.LogOperationFailed(logger, device_id, "setModel", e.Message);
+            ApiServerLog.LogOperationFailed(logger, deviceId, "setModel", e.Message);
             return Ok(DataResponse.Fail(DataResponse.CodeExecuteFailed));
         }
     }
