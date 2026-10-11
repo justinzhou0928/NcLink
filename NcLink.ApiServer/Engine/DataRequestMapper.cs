@@ -26,12 +26,12 @@ internal static class DataRequestMapper
     {
         error = null;
         // 实测：path 问题 → 3；operation 非法 → 2；key 空串 → 19；参数形状 → 4
-        errorCode = DataResponse.CodeDataFailed;
+        errorCode = DataResponse.CodeRequestBadIndex;
 
         if (string.IsNullOrWhiteSpace(item.Path))
         {
             error = "items[].path 不能为空。";
-            errorCode = DataResponse.CodePathNotFound;
+            errorCode = DataResponse.CodeRequestBadPath;
             return null;
         }
 
@@ -44,7 +44,7 @@ internal static class DataRequestMapper
             {
                 error = $"不支持的 operation：{operation}。合法值为 "
                       + "get_value / set_value / get_length / get_keys / get_attributes / add / delete。";
-                errorCode = DataResponse.CodeBadOperation;
+                errorCode = DataResponse.CodeRequestBadOperation;
                 return null;
             }
             op = parsed;
@@ -57,8 +57,8 @@ internal static class DataRequestMapper
         if (keyError is not null)
         {
             error = keyError;
-            // 实测：key 传空串 → code 19（目标对象不存在），2 ms 内立即返回
-            errorCode = keyEmpty ? DataResponse.CodeObjectNotFound : DataResponse.CodeDataFailed;
+            // 实测：key 传空串 → code 19（厂家 EXECUTE_ERR_OTHER），2 ms 内立即返回
+            errorCode = keyEmpty ? DataResponse.CodeExecuteOther : DataResponse.CodeRequestBadIndex;
             return null;
         }
 

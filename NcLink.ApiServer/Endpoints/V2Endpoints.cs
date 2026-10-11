@@ -1,41 +1,48 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using NcLink.ApiServer.General.Logging;
 using NcLink.ApiServer.Models;
+using NcLink.Client.Files.Interfaces;
+using NcLink.Client.Query.Interfaces;
+using NcLink.Client.Set.Interfaces;
 
 namespace NcLink.ApiServer.Endpoints;
 
 /// <summary>
-/// v2 端点：<c>/v2/{device_id}/...</c>（官方 <c>DataApi2</c> / <c>ModelApi</c>）。
+/// v2 端点：<c>/v2/{device_id}/...</c>。
 ///
-/// <b>本文件的存在意义是"忠实复刻实测到的官方行为"，而不是实现一个更好的 v2。</b>
-/// 官方 0.3.10 的 v2 控制器实测是系统性退化的（见 docs/api-server.md「v2 的实测行为」）：
+/// <b>官方 0.3.10 的 v2 是系统性坏掉的。</b>根因在反编译
+/// <c>nclink-core-2.1.3</c> 后已确证，不再是推测：
 ///
-/// <list type="table">
-/// <item><term><c>/v2/{sn}/data/**</c></term>
-///   <description>参数错误一律 <c>code 5</c>（v1 会区分 1/2/3/4）；
-///     <b>合法请求恒定超时 → <c>code 16</c></b>（20 次全失败，平均 1009 ms）；
-///     <c>items: []</c> 仍返回成功空数组。</description></item>
-/// <item><term><c>/v2/{sn}/model</c></term>
-///   <description>与 v1 <b>逐字节相同</b>（实测 12508 字符一致），但官方 Swagger 未文档化它。</description></item>
-/// <item><term><c>/v2/{sn}/file/**</c></term>
-///   <description>参数校验同 v1（缺 path/key → 400）；取不到文件时
-///     <b>消息文本是 <c>"the file size error"</c></b>（v1 是 <c>"get the file size error"</c>）。</description></item>
-/// <item><term><c>/v2/sample/**</c></term>
-///   <description><b>不存在</b>（404）。这里因此也不映射。</description></item>
+/// <list type="number">
+/// <item><c>SyncClient2</c> 把请求发到 <c>Query/Request/{SN}/{clientId}</c>（四层），
+///   而设备只订阅三层 <c>Query/Request/{SN}</c> —— 请求<b>发到了没人收的主题上</b>，
+///   于是永远等不到响应。<c>SyncClient</c>（v1）用的才是正确的三层。</item>
+/// <item><c>InteractionManager.execute2</c> 只等 <b>1000 ms</b>（v1 的 <c>execute</c> 等 4000 ms），
+///   所以失败来得更快，表现为恒定 <c>code 16</c>。</item>
+/// <item>参数错误被 <c>case 1..5:</c> 全部塌成 <c>code 5</c>，丢失了具体原因。</item>
 /// </list>
 ///
-/// 差异说明：我们<b>立即</b>返回 <c>code 16</c>，不像官方那样真等一个超时窗口
-/// （1009 ms）。对客户端而言 status/code/value 完全一致，只是快得多。
+/// <b>我们的立场：官方正确处对齐，坏处修好。</b>因此默认走与 v1 同一条正确路径
+/// （v2 与 v1 的参数、响应形状本来就相同），并返回精确错误码。
+/// 需要向厂家证明"我们完整复刻了你的实现"时，打开
+/// <see cref="ApiServerOptions.ReproduceOfficialV2Defects"/>。
 /// </summary>
 internal static class V2Endpoints
 {
+    /// <summary>
+    /// 官方把 <c>code 1..5</c> 全部塌成 5 用的就是这个值
+    /// （<c>StatusCode.REQUEST_ERR_KEY</c>）。
+    /// </summary>
+    private const int OfficialV2CollapsedCode = 5;
+
     /// <summary>v2 数据接口（前缀由调用方给）。</summary>
     public static RouteGroupBuilder MapDataApi2(this RouteGroupBuilder group)
     {
         // GET 不能有请求体——必须与 POST 分开，否则 Minimal API 的元数据推断会报
         // "Body was inferred but the method does not allow inferred body parameters"。
         group.MapPost("/{*rest}", HandleDataPostAsync).Produces<DataResponse>(200);
-        group.MapGet("/{*rest}", HandleDataGet).Produces<DataResponse>(200);
+        group.MapGet("/{*rest}", HandleDataGetAsync).Produces<DataResponse>(200);
         return group;
     }
 
@@ -55,81 +62,109 @@ internal static class V2Endpoints
         return group;
     }
 
-    /// <summary>实测：v2 的 GET 形式完全不可用——任何 query 组合都是 <c>code 5</c>。</summary>
-    private static IResult HandleDataGet(string device_id, ILoggerFactory loggerFactory)
-    {
-        var logger = loggerFactory.CreateLogger(nameof(V2Endpoints));
-        ApiServerLog.LogV2Call(logger, "GET", device_id, DataResponse.CodeV2BadRequest);
-        return Results.Json(DataResponse.Fail(DataResponse.CodeV2BadRequest));
-    }
+    #region 数据
 
-    /// <summary>
-    /// v2 数据接口（POST）：参数合法 → <c>code 16</c>；参数不合法 → <c>code 5</c>。
-    /// </summary>
-    private static IResult HandleDataPostAsync(
+    private static async Task<IResult> HandleDataPostAsync(
         string device_id,
         [FromBody] DataRequest? request,
-        ILoggerFactory loggerFactory)
+        IQuery query,
+        ISet set,
+        IOptions<ApiServerOptions> options,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger(nameof(V2Endpoints));
 
-        // 参数校验：v2 把所有参数问题都归并到 5
-        if (request?.Items is null)
-        {
-            ApiServerLog.LogV2Call(logger, "POST", device_id, DataResponse.CodeV2BadRequest);
-            return Results.Json(DataResponse.Fail(DataResponse.CodeV2BadRequest));
-        }
+        if (options.Value.ReproduceOfficialV2Defects)
+            return ReproduceData(request, logger, device_id, "POST");
 
-        // items: [] 官方仍返回成功空数组，与 v1 相同
-        if (request.Items.Count == 0)
-            return Results.Json(DataResponse.Ok(Array.Empty<object>()));
-
-        var operation = request.Operation ?? "get_value";
-        if (!NcLink.Protocol.Contracts.NcLinkOperationNames.TryParse(operation, out _))
-        {
-            ApiServerLog.LogV2Call(logger, "POST", device_id, DataResponse.CodeV2BadRequest);
-            return Results.Json(DataResponse.Fail(DataResponse.CodeV2BadRequest));
-        }
-
-        foreach (var item in request.Items)
-        {
-            var mapped = Engine.DataRequestMapper.ToDataItemRequest(item, operation, out _, out _);
-            if (mapped is null)
-            {
-                ApiServerLog.LogV2Call(logger, "POST", device_id, DataResponse.CodeV2BadRequest);
-                return Results.Json(DataResponse.Fail(DataResponse.CodeV2BadRequest));
-            }
-        }
-
-        // 参数都合法 —— 官方在这里等满超时窗口后返回 16
-        ApiServerLog.LogV2Call(logger, "POST", device_id, DataResponse.CodeV2DataTimeout);
-        return Results.Json(DataResponse.Fail(DataResponse.CodeV2DataTimeout));
+        // 默认：与 v1 同一条正确路径，错误码也精确（不再塌成 5）
+        return await DataEndpoints.ExecuteRequestAsync(
+            device_id, request, query, set, logger, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>v2 file 的下载：校验与 v1 相同，仅错误消息文本不同。</summary>
+    private static async Task<IResult> HandleDataGetAsync(
+        string device_id,
+        [FromQuery] string? operation,
+        [FromQuery] string? path,
+        [FromQuery] int[]? index,
+        [FromQuery] string[]? key,
+        [FromQuery] int? offset,
+        [FromQuery] string? value,
+        IQuery query,
+        ISet set,
+        IOptions<ApiServerOptions> options,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var logger = loggerFactory.CreateLogger(nameof(V2Endpoints));
+
+        if (options.Value.ReproduceOfficialV2Defects)
+            return ReproduceData(null, logger, device_id, "GET");
+
+        return await DataEndpoints.ExecuteGetRequestAsync(
+            device_id, operation, path, index, key, offset, value, query, set,
+            logger, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>
-    /// v2 的文件下载：与 v2 的数据接口一样是<b>退化</b>的。
-    ///
-    /// 实测（文件确实存在、重复 3 次）：官方恒定返回 <c>code 13</c>
-    /// （<c>"the file size error"</c>），耗时约 <b>5030 ms</b>——与 v2 数据接口
-    /// 恒定 1009 ms 的超时同源。文件不存在时同样 13。
-    ///
-    /// 因此这里<b>忠实复刻</b>：参数校验照旧（缺 path/key → 400），
-    /// 其余一律 13。不像官方那样真等满 5 秒。
+    /// 复刻官方 v2 数据接口的缺陷：参数问题一律 <c>code 5</c>，
+    /// 参数合法则恒定 <c>code 16</c>（官方那边真等 1000 ms 超时，我们立即返回）。
     /// </summary>
-    private static IResult DownloadAsync(
+    private static IResult ReproduceData(DataRequest? request, ILogger logger, string deviceId, string method)
+    {
+        if (request?.Items is { Count: > 0 })
+        {
+            var operation = request.Operation ?? "get_value";
+            var allValid = NcLink.Protocol.Contracts.NcLinkOperationNames.TryParse(operation, out _)
+                && request.Items.All(i => Engine.DataRequestMapper.ToDataItemRequest(i, operation, out _, out _) is not null);
+
+            if (allValid)
+            {
+                ApiServerLog.LogV2Call(logger, method, deviceId, DataResponse.CodeExecuteTimeout);
+                return Results.Json(DataResponse.Fail(DataResponse.CodeExecuteTimeout));
+            }
+        }
+        else if (request?.Items is { Count: 0 })
+        {
+            // items: [] 官方仍返回成功空数组
+            return Results.Json(DataResponse.Ok(Array.Empty<object>()));
+        }
+
+        ApiServerLog.LogV2Call(logger, method, deviceId, OfficialV2CollapsedCode);
+        return Results.Json(DataResponse.Fail(OfficialV2CollapsedCode));
+    }
+
+    #endregion
+
+    #region 文件
+
+    private static async Task<IResult> DownloadAsync(
         string device_id,
         [FromQuery] string? path,
         [FromQuery] string? key,
+        [FromQuery] int? offset,
+        [FromQuery] int? length,
         HttpContext http,
-        ILoggerFactory loggerFactory)
+        IFileTransfer files,
+        IOptions<ApiServerOptions> options,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(path) || key is null)
             return Results.Json(ApiError.BadRequest(http.Request.Path), statusCode: 400);
 
         var logger = loggerFactory.CreateLogger(nameof(V2Endpoints));
-        ApiServerLog.LogOperationFailed(logger, device_id, "v2 fileRequest", "v2 文件接口恒定失败（复刻官方）");
-        return Results.Json(DataResponse.FailFile(v2: true));
+
+        if (options.Value.ReproduceOfficialV2Defects)
+        {
+            // 官方 v2 的文件下载同样走 SyncClient2，恒定 code 13（实测约 5030 ms）
+            ApiServerLog.LogOperationFailed(logger, device_id, "v2 fileRequest", "复刻官方 v2 缺陷");
+            return Results.Json(DataResponse.FailFile(v2: true));
+        }
+
+        return await FileEndpoints.ExecuteDownloadAsync(
+            device_id, path, key, offset, length, http, files, logger, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<IResult> UploadAsync(
@@ -138,7 +173,8 @@ internal static class V2Endpoints
         [FromForm] string path,
         [FromForm] string key,
         HttpContext http,
-        NcLink.Client.Files.Interfaces.IFileTransfer files,
+        IFileTransfer files,
+        IOptions<ApiServerOptions> options,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -150,28 +186,27 @@ internal static class V2Endpoints
         if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(fileName))
             return Results.Json(ApiError.BadRequest(http.Request.Path), statusCode: 400);
 
-        try
+        // 官方 v2 独有一条魔数校验：key 长度 ≤ 3 直接拒（v1 没有这条）。
+        // 只在复刻模式下还原——它没有依据，不应作为我们的行为。
+        if (options.Value.ReproduceOfficialV2Defects && fileName.Length <= 3)
         {
-            await using var stream = value.OpenReadStream();
-            using var buffer = new MemoryStream();
-            await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
-
-            await files.UploadAsync(device_id, fileName, buffer.ToArray(), cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
-
-            return Results.Json(DataResponse.Ok());
+            ApiServerLog.LogBadDataRequest(logger, $"复刻官方 v2：key 长度 {fileName.Length} ≤ 3");
+            return Results.Json(DataResponse.Fail(DataResponse.CodeExecuteDevice, "params error"));
         }
-        catch (Exception e)
-        {
-            ApiServerLog.LogOperationFailed(logger, device_id, "v2 sendFileToDevice", e.Message);
-            return Results.Json(DataResponse.FailFile(v2: true));
-        }
+
+        return await FileEndpoints.ExecuteUploadAsync(
+            device_id, value, fileName, http, files, logger, v2Message: true, cancellationToken)
+            .ConfigureAwait(false);
     }
 
-    /// <summary>v2 取模型：实测与 v1 完全一致。</summary>
+    #endregion
+
+    #region 模型
+
+    /// <summary>v2 取模型：实测与 v1 逐字节相同。</summary>
     private static async Task<IResult> GetModelAsync(
         string device_id,
-        NcLink.Client.Query.Interfaces.IQuery query,
+        IQuery query,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -184,7 +219,7 @@ internal static class V2Endpoints
 
             var reshaped = Engine.ModelReshaper.Reshape(model.RawJson);
             if (reshaped is null)
-                return Results.Json(DataResponse.Fail(DataResponse.CodeDataFailed));
+                return Results.Json(DataResponse.Fail(DataResponse.CodeRequestModel));
 
             return Results.Content(
                 "{\"status\":\"SUCCESS\",\"code\":0,\"value\":" + Engine.ModelReshaper.ToJson(reshaped) + "}",
@@ -193,14 +228,14 @@ internal static class V2Endpoints
         catch (Exception e)
         {
             ApiServerLog.LogOperationFailed(logger, device_id, "v2 getModel", e.Message);
-            return Results.Json(DataResponse.Fail(DataResponse.CodeDataFailed));
+            return Results.Json(DataResponse.Fail(DataResponse.CodeExecuteFailed));
         }
     }
 
     private static async Task<IResult> SetModelAsync(
         string device_id,
         [FromBody] System.Text.Json.JsonElement model,
-        NcLink.Client.Query.Interfaces.IQuery query,
+        IQuery query,
         ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger(nameof(V2Endpoints));
@@ -211,7 +246,7 @@ internal static class V2Endpoints
                     model.GetRawText(), device_id, out var parsed, out var error))
             {
                 ApiServerLog.LogBadDataRequest(logger, $"模型解析失败：{error}");
-                return Results.Json(DataResponse.Fail(DataResponse.CodeV2BadRequest));
+                return Results.Json(DataResponse.Fail(OfficialV2CollapsedCode));
             }
 
             query.RegisterModel(parsed!);
@@ -220,7 +255,9 @@ internal static class V2Endpoints
         catch (Exception e)
         {
             ApiServerLog.LogOperationFailed(logger, device_id, "v2 setModel", e.Message);
-            return Results.Json(DataResponse.Fail(DataResponse.CodeDataFailed));
+            return Results.Json(DataResponse.Fail(DataResponse.CodeExecuteFailed));
         }
     }
+
+    #endregion
 }

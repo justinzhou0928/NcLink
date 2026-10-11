@@ -48,22 +48,37 @@ internal static class DataEndpoints
         ISet set,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
-    {
-        var logger = loggerFactory.CreateLogger(nameof(DataEndpoints));
+        => await ExecuteRequestAsync(
+            device_id, request, query, set,
+            loggerFactory.CreateLogger(nameof(DataEndpoints)), cancellationToken);
 
+    /// <summary>
+    /// 数据请求的实现，<b>v1 与 v2 共用</b>。
+    ///
+    /// 两条路由的参数与响应形状本来就相同，官方把它们分成两套（且 v2 那套是坏的）——
+    /// 我们只保留一份正确实现，v2 直接复用。
+    /// </summary>
+    internal static async Task<IResult> ExecuteRequestAsync(
+        string deviceId,
+        DataRequest? request,
+        IQuery query,
+        ISet set,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
         if (request is null || request.Items is null)
         {
             // 实测：缺 items → code 1
             const string reason = "请求体缺少 items。";
             ApiServerLog.LogBadDataRequest(logger, reason);
-            return Results.Json(DataResponse.Fail(DataResponse.CodeItemsMissing));
+            return Results.Json(DataResponse.Fail(DataResponse.CodeRequestItemsMissing));
         }
 
         // 实测：items 为空数组 → SUCCESS 且 value 为 []
         if (request.Items.Count == 0)
             return Results.Json(DataResponse.Ok(Array.Empty<object>()));
 
-        return await ExecuteAsync(device_id, request, query, set, logger, cancellationToken);
+        return await ExecuteAsync(deviceId, request, query, set, logger, cancellationToken);
     }
 
     /// <summary>GET 便捷形式：<c>?operation=..&amp;path=..&amp;index=0&amp;index=1&amp;key=..</c>。</summary>
@@ -79,14 +94,35 @@ internal static class DataEndpoints
         ISet set,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
-    {
-        var logger = loggerFactory.CreateLogger(nameof(DataEndpoints));
+        => await ExecuteGetRequestAsync(
+            device_id, operation, path, index, key, offset, value, query, set,
+            loggerFactory.CreateLogger(nameof(DataEndpoints)), cancellationToken);
 
+    /// <summary>
+    /// GET 便捷形式的实现，<b>v1 与 v2 共用</b>。
+    ///
+    /// <b>这是相对官方的改进</b>：官方的 GET 只读请求体，而 GET 带不了体，
+    /// 于是任何 query 组合都返回 <c>code 3</c>——GET 形式在官方那边完全不可用。
+    /// 我们把查询参数读起来，GET 因此可用。
+    /// </summary>
+    internal static async Task<IResult> ExecuteGetRequestAsync(
+        string deviceId,
+        string? operation,
+        string? path,
+        int[]? index,
+        string[]? key,
+        int? offset,
+        string? value,
+        IQuery query,
+        ISet set,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(path))
         {
             const string reason = "GET 形式必须提供 path 查询参数。";
             ApiServerLog.LogBadDataRequest(logger, reason);
-            return Results.Json(DataResponse.Fail(DataResponse.CodePathNotFound));
+            return Results.Json(DataResponse.Fail(DataResponse.CodeRequestBadPath));
         }
 
         var item = new DataRequestItem { Path = path, Offset = offset, Key = ToElement(key) };
@@ -98,7 +134,7 @@ internal static class DataEndpoints
             item.Value = JsonSerializer.SerializeToElement(value);
 
         var request = new DataRequest { Operation = operation, Items = [item] };
-        return await ExecuteAsync(device_id, request, query, set, logger, cancellationToken);
+        return await ExecuteAsync(deviceId, request, query, set, logger, cancellationToken);
     }
 
     private static async Task<IResult> ExecuteAsync(
@@ -143,7 +179,7 @@ internal static class DataEndpoints
         catch (Exception e)
         {
             ApiServerLog.LogOperationFailed(logger, deviceId, effectiveOperation, e.Message);
-            return Results.Json(DataResponse.Fail(DataResponse.CodeObjectNotFound));
+            return Results.Json(DataResponse.Fail(DataResponse.CodeExecuteOther));
         }
 
         try
@@ -165,12 +201,12 @@ internal static class DataEndpoints
         {
             // 实测：path 解析不到 → code 3
             ApiServerLog.LogOperationFailed(logger, deviceId, effectiveOperation, e.Message);
-            return Results.Json(DataResponse.Fail(DataResponse.CodePathNotFound));
+            return Results.Json(DataResponse.Fail(DataResponse.CodeRequestBadPath));
         }
         catch (Exception e)
         {
             ApiServerLog.LogOperationFailed(logger, deviceId, effectiveOperation, e.Message);
-            return Results.Json(DataResponse.Fail(DataResponse.CodeDataFailed));
+            return Results.Json(DataResponse.Fail(DataResponse.CodeExecuteFailed));
         }
     }
 

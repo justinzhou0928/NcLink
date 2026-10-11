@@ -238,91 +238,76 @@ delete    → {"value":[false,false]}   两个 items
 > （`get_keys` 返回 `[null]`，任何 `key` 都报 size error）。这里按协议约定
 > 返回十六进制字符串。错误路径的形状与返回码已逐字符验证一致。
 
-## v2 的实测行为
+## v2：官方是坏的，我们修好了
 
-官方 0.3.10 的 v2 控制器是**系统性退化**的。我们**忠实复刻**这些行为——
-目标是可替换，不是"实现一个更好的 v2"。依据是 20 次重复的稳定性实测。
+**立场：官方正确处对齐，坏处修好。** 官方 0.3.10 的 v2 是系统性坏掉的，
+根因在反编译 `nclink-core-2.1.3.jar` 后已<b>确证</b>，不再是推测。
 
-| v2 端点 | 官方实测 | 我们的实现 |
+### 根因（来自反编译，不是实测推断）
+
+`SyncClient2` 与 `SyncClient`（v1）的唯一差别是<b>主题多了 `clientId`</b>：
+
+```java
+// SyncClient（v1）—— 设备订阅的就是这个
+Topic.queryRequest(deviceId)                // Query/Request/{SN}
+
+// SyncClient2（v2）—— 设备根本没订阅
+Topic.queryRequest(deviceId, this.clientId) // Query/Request/{SN}/{clientId}
+```
+
+`apiServer` 把请求发到<b>四层主题</b>，而设备只订阅三层，
+于是<b>请求发到了没人收的主题上</b>，永远等不到响应。
+
+叠加第二层因素——`InteractionManager.execute2` 只等 **1000 ms**（v1 的 `execute` 等 4000 ms），
+所以失败来得更快。可观测量就是「v2 数据接口恒定 `code 16`，约 1009 ms」。
+
+第三处：参数错误被 `case 1..5:` **全部塌成 `code 5`**，丢失了具体原因
+（`code 5` 的真名是 `REQUEST_ERR_KEY`）。
+
+### 我们的默认行为 vs 官方
+
+| 用例 | 官方 | 我们（默认）|
 |---|---|---|
-| `POST /v2/{sn}/data/**` 参数错误 | `code 5`（v1 会区分 1/2/3/4）| 同 |
-| `POST /v2/{sn}/data/**` **合法请求** | **`code 16`，20/20 失败，平均 1009 ms** | 同码，但**立即返回** |
-| `POST /v2/{sn}/data/**` `items: []` | `SUCCESS` + `[]` | 同 |
-| `GET /v2/{sn}/data/**`（任何 query）| `code 5`，完全不可用 | 同 |
-| `GET/POST /v2/{sn}/model` | 与 v1 **逐字节相同**（官方 Swagger 却未文档化它）| 同 |
-| `GET /v2/{sn}/file/**` | 参数校验同 v1（缺 path/key → 400）；取不到文件时 `code 13`，消息是 **`"the file size error"`**（v1 是 `"get the file size error"`）| 同 |
-| `/v2/sample/**` | **不存在**（404）| 不映射 |
+| `POST /v2/{sn}/data/` 合法请求 | `code 16`（失败）| **`code 0` + 真实值** |
+| 缺 `items` | `code 5` | **`code 1`** |
+| `operation` 非法 | `code 5` | **`code 2`** |
+| `path` 缺失 | `code 5` | **`code 3`** |
+| `index` 字符串 | `code 5` | **`code 4`** |
+| `GET /v2/{sn}/data/?path=..` | `code 5`（不可用）| **`code 0` + 真实值** |
+| `GET /v2/{sn}/file/?path=..&key=..` | `code 13`（失败）| **文件原始字节流** |
+| `items: []` | `code 0` + `[]` | 同（本来就对）|
 
-**为什么 v2 data 恒定 16**：官方日志里是
-`InteractionManager` 抛 `TimeoutException`（`DataApi2.dataRequest(DataApi2.java:67)`）。
-它与 v1 的差别在 `javap` 里可见——`DataApi2.dataRequest` 多收一个 `HttpServletRequest`，
-实测对应的 MQTT 侧是**请求级私有应答主题**（EMQX 里能看到
-`Query/Response/{SN}/{clientId}` 这种订阅），而设备只发到共享主题
-`Query/Response/{SN}`，于是永远等不到响应。**这是官方的缺陷，不是配置问题**：
-换任何请求头、任何请求形式、任何设备都一样。
+实现上 v2 与 v1 **共用同一条正确路径**——两条路由的参数与响应形状本来就相同，
+官方把它们分成两套（且 v2 那套是坏的），我们只保留一份。
 
-**一处刻意的差异**：我们**立即**返回 `code 16`，不像官方那样真等满超时窗口
-（1009 ms 数据 / 5021 ms 文件）。对客户端而言 `status`/`code`/`value` 完全一致，
-只是快得多。
+### 复刻模式：`ApiServer.ReproduceOfficialV2Defects`
 
-## 采样：为什么服务端需要缓存
-
-设备是**推送式**的（`Sample/{deviceId}/{channelId}`），而 HTTP 客户端只能**轮询**。
-`SampleCache` 就是为此存在的：它持有订阅、缓冲最近的帧，取数时**取走并清空（drain）**。
-
-drain 语义来自实测：连续两次轮询拿到的是**不同的单帧**（各带不同 `beginTime`），
-而非累积的多帧。
-
-参数照搬官方 `application.yml`，可通过配置覆盖：
-
-| 配置 | 默认 | 官方对应 |
-|---|---|---|
-| `ApiServer:Port` | `19001` | `server.port` |
-| `ApiServer:SampleCacheMaxFrames` | `100` | `sample.cache.max` |
-| `ApiServer:SampleCacheIdleTimeoutMs` | `10000` | `sample.cache.timeout` |
-| `ApiServer:DefaultRequestTimeoutMs` | `10000` | `sample.client.timeout` |
-| `ApiServer:BrokerAddress` | `tcp://127.0.0.1:1883` | `spring.mqtt.url` |
-
-## 运行
+默认 `false`。<b>打开后逐项复刻官方的缺陷</b>，实测 7/7 与官方一致：
 
 ```powershell
-# 默认 19001（与官方一致，便于直接替换）
-dotnet run --project NcLink.ApiServer
-
-# 并列跑，便于与官方对照
-dotnet run --project NcLink.ApiServer -- --ApiServer:Port=19002
+dotnet run --project NcLink.ApiServer -- --ApiServer:Port=19003 --ApiServer:ReproduceOfficialV2Defects=true
 ```
 
-## 验证
+| 用例 | 官方 | 复刻模式 |
+|---|---|---|
+| 合法请求 | 16 | 16 |
+| 缺 items / operation 非法 / path 缺失 / index 字符串 | 5 | 5 |
+| GET 带 query | 5 | 5 |
+| items 空数组 | 0 | 0 |
 
-与官方 apiServer 的**逐字符对照**已固化成 `NcLink.Conformance` 的一个模式：
+用途是<b>向厂家证明"我们完整理解你的实现"</b>，而不是日常运行。
+它同时把"我们不是做不到一致，而是选择做得更好"变成可执行的事实。
 
-```powershell
-# 先让两个 ApiServer 同时跑（官方 19001、我们 19002）
-dotnet run --project NcLink.Conformance -- --compare http://127.0.0.1:19002
-```
+> 复刻模式还还原了官方 v2 独有的一条魔数校验：
+> `key.length() <= 3` 直接拒（`code 12` + `"params error"`，v1 没有这条）。
+> 它没有依据，只在复刻模式下存在。
 
-结果（2026-07 实测）：
+### 官方 v2 的其它已知问题（我们不复刻）
 
-```
-[一] 数据接口 /v1/{sn}/data/（逐字符比对）
-  15 个用例全部一致 —— 含 status/code/value 的每一个字符、
-  以及 code 1/2/3/4/13/17/19 全部错误码
-
-[二] 采样接口
-  官方帧数=4  我们帧数=4
-  [一致] 帧序列同源（我们 = 官方的子序列）
-  [一致] 末帧形状（beginTime 类型 + data 层级）
-
-[三] 文档端点 / 监听端口 / 文件端点
-  监听端口：官方 19001 / 我们默认同端口
-  文档端点可达性：8 个端点 HTTP 状态全部一致（含 4 个必须 404 的）
-  规范：官方文档化的 8 个操作全部存在且参数/响应逐字段一致
-  definitions：DataRequest / DataResponse / Item 字段一致
-  文件端点：4 个用例（含 3 个必须 400 的）状态与错误体形状一致
-
-两个 ApiServer 的行为一致。
-```
+- `DataApi2.java:70` 把 `"/v1".length()` 硬编码去切 `/v2/` 的 URI——
+  因为两者都是 3 字符，<b>凑巧没错</b>，是潜伏 bug。
+- `request.timeout` 被夹到 `[10, 30000]` 后<b>根本没用于等待</b>，
+  `future.get()` 是硬编码的 4000/1000 ms。请求体里那个 `timeout` 字段形同虚设。
 
 ## 模型端点：复刻官方的重新序列化
 

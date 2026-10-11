@@ -28,20 +28,6 @@ internal sealed class BehaviorComparison(string officialBase, string oursBase, s
 
     private static readonly Case[] Cases =
     [
-        // v2：官方实测的全部行为
-        new("v2 data 缺 items → 5", HttpMethod.Post, "/v2/{sn}/data/", """{"operation":"get_value","timeout":8000}"""),
-        new("v2 data operation 非法 → 5", HttpMethod.Post, "/v2/{sn}/data/", Data("no_such_op", """{"path":"/MACHINE/CONTROLLER/VARIABLE@REG_X"}""")),
-        new("v2 data path 缺失 → 5", HttpMethod.Post, "/v2/{sn}/data/", Data("get_value", """{"index":0}""")),
-        new("v2 data index 字符串 → 5", HttpMethod.Post, "/v2/{sn}/data/", Data("get_value", $$"""{"path":"{{RegX}}","index":"0-7"}""")),
-        new("v2 data items 空数组 → 成功空数组", HttpMethod.Post, "/v2/{sn}/data/", Data("get_value", "")),
-        new("v2 data 合法请求 → 16（复刻官方超时）", HttpMethod.Post, "/v2/{sn}/data/", Data("get_value", $$"""{"path":"{{RegX}}","index":0}""")),
-        new("v2 data GET → 5", HttpMethod.Get, "/v2/{sn}/data/"),
-        new("v2 data GET 带 query → 5", HttpMethod.Get, "/v2/{sn}/data/?operation=get_value"),
-        new("v2 file 缺参数 → 400", HttpMethod.Get, "/v2/{sn}/file/"),
-        new("v2 file path+key（设备无此文件）", HttpMethod.Get, "/v2/{sn}/file/?path=/MACHINE/CONTROLLER/FILE&key=x"),
-        new("v2 model", HttpMethod.Get, "/v2/{sn}/model"),
-        new("v2 sample 不存在 → 404", HttpMethod.Post, "/v2/sample/{sn}/sub/sample_channel0", "{}"),
-
         // 4xx 错误体形状
         new("PUT data → 405 带错误体", HttpMethod.Put, "/v1/{sn}/data/"),
         new("DELETE data → 405 带错误体", HttpMethod.Delete, "/v1/{sn}/data/"),
@@ -67,6 +53,40 @@ internal sealed class BehaviorComparison(string officialBase, string oursBase, s
         // 采样边界
         new("sub 不存在的通道", HttpMethod.Post, "/v1/sample/{sn}/sub/no_such_channel", "{}"),
         new("unsub 不存在的 sub_id", HttpMethod.Post, "/v1/sample/{sn}/unsub/00000000-0000-0000-0000-000000000000", "{}"),
+    ];
+
+    /// <summary>
+    /// v2：<b>官方是坏的，我们修好了。</b>
+    ///
+    /// 判据不再是"与官方一致"，而是"我们给出了正确结果"——
+    /// 官方那侧作为<b>证据</b>打印出来，让"我们更好"这句话有据可查。
+    ///
+    /// 官方根因（反编译 <c>nclink-core-2.1.3</c> 确证）：<c>SyncClient2</c> 把请求发到
+    /// <c>Query/Request/{SN}/{clientId}</c>（四层），设备只订阅三层，因此永远收不到；
+    /// 叠加 <c>execute2</c> 只等 1000 ms（v1 等 4000 ms）。参数错误则被
+    /// <c>case 1..5</c> 全部塌成 <c>code 5</c>。
+    /// </summary>
+    private sealed record V2Case(string Label, HttpMethod Method, string Path, string? Body, int ExpectCode);
+
+    private static readonly V2Case[] V2Cases =
+    [
+        // 官方：合法请求恒 16；我们：真正执行
+        new("v2 data 合法请求", HttpMethod.Post, "/v2/{sn}/data/",
+            Data("get_value", $$"""{"path":"{{RegX}}","index":0}"""), 0),
+
+        // 官方：这些全是 5（1..5 被塌成 REQUEST_ERR_KEY）；我们：精确到具体原因
+        new("v2 data 缺 items", HttpMethod.Post, "/v2/{sn}/data/",
+            """{"operation":"get_value","timeout":8000}""", 1),
+        new("v2 data operation 非法", HttpMethod.Post, "/v2/{sn}/data/",
+            Data("no_such_op", $$"""{"path":"{{RegX}}"}"""), 2),
+        new("v2 data path 缺失", HttpMethod.Post, "/v2/{sn}/data/",
+            Data("get_value", """{"index":0}"""), 3),
+        new("v2 data index 字符串", HttpMethod.Post, "/v2/{sn}/data/",
+            Data("get_value", $$"""{"path":"{{RegX}}","index":"0-7"}"""), 4),
+
+        // 官方：GET 只读请求体，任何 query 都是 3/5；我们：读查询参数，可用
+        new("v2 data GET 带 query", HttpMethod.Get,
+            "/v2/{sn}/data/?path=/MACHINE/CONTROLLER/VARIABLE@REG_X&operation=get_length", null, 0),
     ];
 
     /// <summary>多设备用例：与 <see cref="Cases"/> 分开，因为 SN 不同。</summary>
@@ -100,8 +120,57 @@ internal sealed class BehaviorComparison(string officialBase, string oursBase, s
         output.WriteLine();
         output.WriteLine($"  行为面：一致 {total - failures} / 不一致 {failures}");
 
+        failures += await RunV2Async(output);
         failures += await RunExtraAsync(output);
         return failures;
+    }
+
+    /// <summary>
+    /// v2：断言"我们比官方好"。
+    ///
+    /// 每条打印三方信息——<b>期望码 / 我们的实际码 / 官方的实际码</b>——
+    /// 这样"官方坏在哪、我们修成什么样"是一行就能核对的证据，而不是一句声明。
+    /// </summary>
+    private async Task<int> RunV2Async(TextWriter output)
+    {
+        output.WriteLine();
+        output.WriteLine("  v2：官方是坏的，我们修好了（期望码 | 我们 | 官方）：");
+
+        var failures = 0;
+        foreach (var c in V2Cases)
+        {
+            var path = c.Path.Replace("{sn}", sn);
+            var (officialCode, officialBody) = await SendAsync(officialBase, c.Method, path, c.Body);
+            var (ourCode, ourBody) = await SendAsync(oursBase, c.Method, path, c.Body);
+
+            var ourValue = ExtractCode(ourBody);
+            var officialValue = ExtractCode(officialBody);
+
+            // 只看响应体里的 code——HTTP 状态两边都是 200（失败也靠 code 表达）
+            var oursOk = ourValue == c.ExpectCode;
+
+            if (!oursOk) failures++;
+            output.WriteLine($"    [{(oursOk ? "达成" : "未达成")}] {c.Label}");
+            output.WriteLine($"        期望 code {c.ExpectCode} | 我们 code {ourValue} | 官方 code {officialValue ?? officialCode}");
+            if (!oursOk)
+            {
+                output.WriteLine($"        我们: HTTP {ourCode} {Truncate(ourBody)}");
+                output.WriteLine($"        官方: HTTP {officialCode} {Truncate(officialBody)}");
+            }
+        }
+
+        return failures;
+    }
+
+    /// <summary>从 <c>{"status":..,"code":N,..}</c> 里取 <c>code</c>；取不到返回 null。</summary>
+    private static int? ExtractCode(string body)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            return doc.RootElement.TryGetProperty("code", out var code) && code.TryGetInt32(out var n) ? n : null;
+        }
+        catch (Exception) { return null; }
     }
 
     /// <summary>

@@ -36,7 +36,7 @@ internal static class SampleEndpoints
         }
         catch (Exception)
         {
-            return Results.Json(DataResponse.Fail(DataResponse.CodeDataFailed));
+            return Results.Json(DataResponse.Fail(DataResponse.CodeExecuteFailed));
         }
     }
 
@@ -46,7 +46,7 @@ internal static class SampleEndpoints
 
         // 订阅不存在 → 实测官方返回 code 17
         return frames is null
-            ? Results.Json(DataResponse.Fail(DataResponse.CodeSubscriptionNotFound))
+            ? Results.Json(DataResponse.Fail(DataResponse.CodeExecuteBadSubId))
             : Results.Json(DataResponse.Ok(frames));
     }
 
@@ -56,6 +56,6 @@ internal static class SampleEndpoints
         var removed = await cache.UnsubscribeAsync(sub_id, cancellationToken).ConfigureAwait(false);
         return Results.Json(removed
             ? DataResponse.Ok()
-            : DataResponse.Fail(DataResponse.CodeSubscriptionNotFound));
+            : DataResponse.Fail(DataResponse.CodeExecuteBadSubId));
     }
 }

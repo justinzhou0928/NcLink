@@ -42,9 +42,22 @@ internal static class FileEndpoints
         IFileTransfer files,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
-    {
-        var logger = loggerFactory.CreateLogger(nameof(FileEndpoints));
+        => await ExecuteDownloadAsync(
+            device_id, path, key, offset, length, http, files,
+            loggerFactory.CreateLogger(nameof(FileEndpoints)), cancellationToken);
 
+    /// <summary>文件下载的实现，<b>v1 与 v2 共用</b>（两条路由的行为本来就相同）。</summary>
+    internal static async Task<IResult> ExecuteDownloadAsync(
+        string deviceId,
+        string? path,
+        string? key,
+        int? offset,
+        int? length,
+        HttpContext http,
+        IFileTransfer files,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
         // 实测：path 与 key 都是必填，缺任一个官方返回 400（Spring 默认错误体）
         if (string.IsNullOrWhiteSpace(path) || key is null)
             return Results.Json(ApiError.BadRequest(http.Request.Path), statusCode: 400);
@@ -52,7 +65,7 @@ internal static class FileEndpoints
         try
         {
             // key 就是文件名；path 用于定位 FILE 数据项（库按设备 + 文件名取文件）
-            var bytes = await files.DownloadAsync(device_id, key, cancellationToken: cancellationToken)
+            var bytes = await files.DownloadAsync(deviceId, key, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
             // offset/length 是分块参数：给了就只返回该段
@@ -74,7 +87,7 @@ internal static class FileEndpoints
         catch (Exception e)
         {
             // 实测：取不到文件大小时官方返回 code 13 且 value 是消息字符串
-            ApiServerLog.LogOperationFailed(logger, device_id, "fileRequest", e.Message);
+            ApiServerLog.LogOperationFailed(logger, deviceId, "fileRequest", e.Message);
             return Results.Json(DataResponse.FailFile(v2: false));
         }
     }
@@ -89,12 +102,32 @@ internal static class FileEndpoints
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        var logger = loggerFactory.CreateLogger(nameof(FileEndpoints));
-
         // 表单字段名必须与官方一致：path / key / value（file），上传字段叫 value 不是 file。
         // 三个形参声明为非可空——契约里就是必填，可空会让生成的文档说成选填。
         var fileName = string.IsNullOrWhiteSpace(key) ? value.FileName : key;
-        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(fileName))
+
+        return await ExecuteUploadAsync(
+            device_id, value, fileName, http, files,
+            loggerFactory.CreateLogger(nameof(FileEndpoints)),
+            v2Message: false, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 文件上传的实现，<b>v1 与 v2 共用</b>。
+    ///
+    /// <paramref name="v2Message"/> 只影响失败时的文案（官方 v2 少一个 <c>get</c>）。
+    /// </summary>
+    internal static async Task<IResult> ExecuteUploadAsync(
+        string deviceId,
+        IFormFile value,
+        string fileName,
+        HttpContext http,
+        IFileTransfer files,
+        ILogger logger,
+        bool v2Message,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
             return Results.Json(ApiError.BadRequest(http.Request.Path), statusCode: 400);
 
         try
@@ -103,15 +136,15 @@ internal static class FileEndpoints
             using var buffer = new MemoryStream();
             await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
 
-            await files.UploadAsync(device_id, fileName, buffer.ToArray(), cancellationToken: cancellationToken)
+            await files.UploadAsync(deviceId, fileName, buffer.ToArray(), cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
             return Results.Json(DataResponse.Ok());
         }
         catch (Exception e)
         {
-            ApiServerLog.LogOperationFailed(logger, device_id, "sendFileToDevice", e.Message);
-            return Results.Json(DataResponse.FailFile(v2: false));
+            ApiServerLog.LogOperationFailed(logger, deviceId, "sendFileToDevice", e.Message);
+            return Results.Json(DataResponse.FailFile(v2Message));
         }
     }
 }

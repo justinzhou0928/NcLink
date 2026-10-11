@@ -44,7 +44,7 @@ internal static class ModelEndpoints
             // （它不是格式问题：dataName 里是 VARIABLE 的 number，丢了就是丢内容）。
             var reshaped = ModelReshaper.Reshape(model.RawJson);
             if (reshaped is null)
-                return Results.Json(DataResponse.Fail(DataResponse.CodeDataFailed));
+                return Results.Json(DataResponse.Fail(DataResponse.CodeRequestModel));
 
             return Results.Content(
                 "{\"status\":\"SUCCESS\",\"code\":0,\"value\":" + ModelReshaper.ToJson(reshaped) + "}",
@@ -53,7 +53,7 @@ internal static class ModelEndpoints
         catch (Exception e)
         {
             ApiServerLog.LogOperationFailed(logger, device_id, "getModel", e.Message);
-            return Results.Json(DataResponse.Fail(DataResponse.CodeDataFailed));
+            return Results.Json(DataResponse.Fail(DataResponse.CodeExecuteFailed));
         }
     }
 
@@ -71,7 +71,7 @@ internal static class ModelEndpoints
             if (!NcLink.Client.Devices.Parsers.DeviceModelParser.TryParse(raw, device_id, out var parsed, out var error))
             {
                 ApiServerLog.LogBadDataRequest(logger, $"模型解析失败：{error}");
-                return Results.Json(DataResponse.Fail(DataResponse.CodePathNotFound));
+                return Results.Json(DataResponse.Fail(DataResponse.CodeRequestBadPath));
             }
 
             query.RegisterModel(parsed!);
@@ -80,7 +80,7 @@ internal static class ModelEndpoints
         catch (Exception e)
         {
             ApiServerLog.LogOperationFailed(logger, device_id, "setModel", e.Message);
-            return Results.Json(DataResponse.Fail(DataResponse.CodeDataFailed));
+            return Results.Json(DataResponse.Fail(DataResponse.CodeExecuteFailed));
         }
     }
 }

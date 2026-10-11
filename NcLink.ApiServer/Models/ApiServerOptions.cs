@@ -39,4 +39,17 @@ public sealed class ApiServerOptions
 
     /// <summary>G 代码默认编码（官方为 GB2312）。</summary>
     public string FileEncoding { get; set; } = "GB2312";
+
+    /// <summary>
+    /// 复刻官方 v2 的<b>缺陷</b>（默认 <c>false</c>）。
+    ///
+    /// 官方 0.3.10 的 v2 是系统性坏掉的——<c>SyncClient2</c> 把请求发到
+    /// <c>Query/Request/{SN}/{clientId}</c>（四层），而设备只订阅三层
+    /// <c>Query/Request/{SN}</c>，于是永远等不到响应；叠加 <c>execute2</c> 只等
+    /// 1000 ms（v1 是 4000 ms），表现为恒定 <c>code 16</c>。
+    ///
+    /// <b>默认关闭：我们让 v2 真正工作。</b>打开这个开关则逐字节复刻官方行为，
+    /// 用途是向厂家证明"我们完整理解你的实现"，而不是日常运行。
+    /// </summary>
+    public bool ReproduceOfficialV2Defects { get; set; }
 }
