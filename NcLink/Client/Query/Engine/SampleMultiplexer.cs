@@ -6,9 +6,10 @@ using NcLink.Protocol.Engine;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NcLink.Logging;
-using NcLink.Client.Devices;
+using NcLink.Client.Devices.Engine;
 using NcLink.Client.Query.Interfaces;
 using NcLink.Client.Query.Models;
+using NcLink.Exceptions;
 
 namespace NcLink.Client.Query.Engine;
 

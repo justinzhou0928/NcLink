@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace NcLink.Client.Files;
+namespace NcLink.Client.Files.Engine;
 
 /// <summary>
 /// G 代码文本编码。

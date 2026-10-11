@@ -5,10 +5,12 @@ using NcLink.Protocol.Interfaces;
 using NcLink.Protocol.Models;
 using NcLink.Protocol.Engine;
 using NcLink.Logging;
-using NcLink.Client.Connection;
-using NcLink.Client.Devices;
+using NcLink.Client.Connection.Interfaces;
+using NcLink.Client.Connection.Models;
+using NcLink.Client.Devices.Interfaces;
+using NcLink.Exceptions;
 
-namespace NcLink.Client.Devices;
+namespace NcLink.Client.Devices.Engine;
 
 /// <summary><see cref="IDeviceProbe"/> 的默认实现。</summary>
 internal sealed partial class DeviceProbe : IDeviceProbe

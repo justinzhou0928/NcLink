@@ -3,8 +3,11 @@ using NcLink.Protocol.Interfaces;
 using NcLink.Protocol.Models;
 using NcLink.Protocol.Engine;
 using NcLink.Tests.Fakes;
-using NcLink.Client.Connection;
+using NcLink.Client.Connection.Models;
+using NcLink.Client.Connection.Options;
+using NcLink.Client.Connection.Engine;
 using Microsoft.Extensions.Logging.Abstractions;
+using NcLink.Exceptions;
 namespace NcLink.Tests.Client;
 
 /// <summary>

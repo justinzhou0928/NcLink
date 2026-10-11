@@ -1,6 +1,6 @@
 using NcLink.Protocol.Interfaces;
-using NcLink.Client.Connection;
-using NcLink.Client.Devices;
+using NcLink.Client.Connection.Interfaces;
+using NcLink.Client.Devices.Engine;
 using NcLink.Client.Query.Interfaces;
 
 namespace NcLink.Client.Query.Engine;

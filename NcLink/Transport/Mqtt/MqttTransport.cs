@@ -4,6 +4,7 @@ using MQTTnet;
 using MQTTnet.Protocol;
 using NcLink.Protocol.Interfaces;
 using NcLink.Protocol.Models;
+using NcLink.Exceptions;
 
 namespace NcLink.Transport.Mqtt;
 

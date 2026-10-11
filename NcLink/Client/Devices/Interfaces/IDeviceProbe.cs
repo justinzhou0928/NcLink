@@ -1,4 +1,5 @@
-namespace NcLink.Client.Devices;
+using NcLink.Client.Devices.Engine;
+namespace NcLink.Client.Devices.Interfaces;
 
 /// <summary>
 /// 探测能力抽象：向设备请求模型 JSON 文本。

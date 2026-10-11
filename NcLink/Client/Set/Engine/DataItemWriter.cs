@@ -1,12 +1,13 @@
-using NcLink.Client.Connection;
-using NcLink.Client.Devices;
+using NcLink.Client.Connection.Engine;
+using NcLink.Client.Devices.Engine;
 using NcLink.Client.Query.Models;
 using NcLink.Client.Query.Engine;
-using NcLink.Client.Set;
+using NcLink.Client.Set.Interfaces;
 using NcLink.Protocol.Interfaces;
 using NcLink.Protocol.Models;
+using NcLink.Client.Files.Interfaces;
 
-namespace NcLink.Client.Set;
+namespace NcLink.Client.Set.Engine;
 
 /// <summary>
 /// 数据项写入：官方手册 5.1「查询/设置相关参数」中的<b>设置</b>部分

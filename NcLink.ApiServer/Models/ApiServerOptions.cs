@@ -52,4 +52,18 @@ public sealed class ApiServerOptions
     /// 用途是向厂家证明"我们完整理解你的实现"，而不是日常运行。
     /// </summary>
     public bool ReproduceOfficialV2Defects { get; set; }
+
+    /// <summary>
+    /// 是否开放 Swagger UI（默认 <c>true</c>）。
+    ///
+    /// <b>默认对齐官方</b>：官方 apiServer 无条件暴露 <c>/swagger-ui.html</c>，
+    /// 关掉会破坏"可直接替换"的前提。
+    ///
+    /// 但 Microsoft 的官方文档把"只暴露 OpenAPI 文档、不暴露交互式 UI"列为
+    /// 安全最佳实践（少披露信息），因此生产部署建议设为 <c>false</c>：
+    /// <c>ApiServer:SwaggerUiEnabled=false</c>。
+    /// 关掉只影响 <c>/swagger</c> 这个 UI，<b>不影响 <c>/openapi/v1.json</c></b>
+    /// ——文档端点仍然可用，只是没有交互页面。
+    /// </summary>
+    public bool SwaggerUiEnabled { get; set; } = true;
 }

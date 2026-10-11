@@ -185,25 +185,22 @@ dotnet test --filter 'FullyQualifiedName~DeviceModelTests'
 
 ```
 NcLink/
-├── NcLink/                        核心包（顶层按功能域分）
-│   ├── NcLinkException.cs         异常层次（库级公开契约）
+├── NcLink/                        核心包（顶层按功能域分，域内够 3 个文件就按作用分）
 │   ├── NcLinkClient.cs            门面（只做装配）+ INcLinkClient
 │   ├── ServiceCollectionExtensions.cs   依赖注入注册 AddNcLink(...)
 │   ├── NcLinkHostedService.cs     宿主集成
-│   ├── Protocol/                  线上格式（域 10 个文件 → 域内按作用分层）
+│   ├── Exceptions/                异常层次（10 个类型，库级公开契约）
+│   ├── Protocol/                  线上格式（10 个 → 按作用分）
 │   │   ├── Interfaces/            INcLinkCodec / INcLinkTopics / INcLinkTransport
 │   │   ├── Models/                NcLinkEnvelope / NcLinkMessages / NcLinkOperation / NcLinkProtocolPaths
 │   │   └── Engine/                JsonNcLinkCodec / NcJsonValue / NcLinkTopics
-│   ├── Logging/                   各组件一个文件，全部 [LoggerMessage] 都在这里
-│   └── Client/                    客户端（按官方手册功能面划分）
-│       ├── Connection/            机制：连接、请求关联、配置（扁平）
-│       ├── Devices/               官方第 8 章「数据字典」（扁平）
-│       ├── Files/                 官方 5.2「获取/下发文件」（扁平）
-│       ├── Set/                   官方 5.1「设置」（扁平）
-│       └── Query/                 官方 5.1「查询」+ 采样（域 11 个文件 → 域内按作用分层）
-│           ├── Interfaces/        IQuery / IDataItemReader / ISampling / ISampleSubscription
-│           ├── Models/            DataItemRequest / DataItemResult / SampleFrame
-│           └── Engine/            DataItemReader / DataItemMessages / SampleSubscriptions / SampleMultiplexer
+│   ├── Logging/                   各组件一个文件，全部 [LoggerMessage]（全同一作用 → 扁平）
+│   └── Client/                    客户端（按官方手册功能面划分，域内按作用分）
+│       ├── Connection/            机制：连接、请求关联、配置
+│       ├── Devices/               官方第 8 章「数据字典」
+│       ├── Files/                 官方 5.2「获取/下发文件」
+│       ├── Set/                   官方 5.1「设置」
+│       └── Query/                 官方 5.1「查询」+ 采样
 ├── Transport/                     传输实现
 │   └── Mqtt/                      MqttTransport / MqttTransportOptions / AddNcLinkMqtt(...)
 ├── NcLink.Simulator/              设备侧参考实现
@@ -218,16 +215,15 @@ NcLink/
 
 每个文件的命名空间与它的文件夹一致。
 
-**顶层按功能域分；域够大时，域内再按作用分。** 判据有两条，都要满足：
-
-1. 该域的 `.cs` 文件数 **>= 8**
-2. 分层后每个作用文件夹 **>= 2** 个文件
-
-两条都满足才分层，否则保持扁平。**不给单个文件开文件夹。**
+**顶层按功能域分；域内够 3 个 `.cs` 文件就按作用分**
+（`Interfaces/` `Models/` `Parsers/` `Engine/` `Options/` `Exceptions/`），
+不足 3 个保持扁平。
 
 这个仓库曾经把**每个**域都切成四层，结果 57 个文件散在 **24 个文件夹**里、
-**11 个只装 1 个文件**；但一刀切全扁平也不对——`Query`(11) 和 `Protocol`(10)
-这么大的域，按作用分层确实好找。把门槛写成统一判据后，**规则会随代码规模自己生效**。
+**11 个只装 1 个文件**；但一刀切全扁平也不对——`Query`(11)、`Protocol`(10)
+这么大的域，按作用分层确实好找。把门槛写成"域内至少 N 个文件才允许分层"，
+**规则随代码规模自己生效**。三个刻意不分的例外（`Client/` 2 个、`Logging/`
+全同一作用、`Transport/Mqtt/` 3 个），理由写在 `DEVELOPMENT.md`。
 
 结构与命名空间由脚本守住：`python tools/check-structure.py`（退出码 0 = 通过）。
 

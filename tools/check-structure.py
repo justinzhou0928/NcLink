@@ -84,14 +84,19 @@ def check_namespace(project_name, rows):
 # 按"作用"分的文件夹名。
 ROLE_DIRS = ('Interfaces', 'Models', 'Parsers', 'Engine', 'Options', 'Exceptions')
 
-# 允许按作用分层的最低门槛。两条都要满足，缺一不可：
-#   1) 该域自己的 .cs 文件数 >= MIN_DOMAIN_FILES —— "文件多的才分"
-#   2) 分层后每个作用文件夹 >= MIN_ROLE_FILES —— 不给单个文件开文件夹
-# 依据：本仓库曾把每个域都切成四层，得到 24 个文件夹、11 个只装 1 个文件
-# （Client/Devices/Interfaces/ 里就 11 行）。把这两条写成硬规则后，
-# 规则会随代码规模自己生效：库小的时候不许分，某个域长大了自然放行。
-MIN_DOMAIN_FILES = 8
-MIN_ROLE_FILES = 2
+# 按作用分层的最低门槛：域内 .cs 文件数。
+#
+# 背景：本仓库曾把**每个**域都切成四层，得到 24 个文件夹、11 个只装 1 个文件
+# （`Client/Devices/Interfaces/` 里就 11 行）。但一刀切全扁平也不对——
+# `Query`(11) 与 `Protocol`(10) 这么大的域，按作用分层确实好找。
+#
+# 于是把门槛写成"**域内至少这么多个文件才允许分层**"：
+# 库小的时候不许分，某个域长大了自然放行，不需要每次靠讨论决定。
+#
+# 只按作用文件夹的**个数**设限、不要求每个作用夹至少 2 个文件——
+# 单文件的 `Interfaces/` 是有意义的分类（"这是本域的契约"），
+# 与"给一个文件随便开个文件夹"不是一回事。
+MIN_DOMAIN_FILES = 3
 
 
 def _cs_count(directory):
@@ -104,7 +109,7 @@ def _cs_count(directory):
 
 def check_role_folders(project_root):
     """
-    按作用分层只在"域够大、且分层后每层都不是单文件"时才允许。
+    域内只有不到 MIN_DOMAIN_FILES 个 .cs 时，不该再按作用分层。
 
     项目根的直接子项（如 ApiServer 的 `Models/`）是 .NET 常规布局，放行。
     """
@@ -122,17 +127,9 @@ def check_role_folders(project_root):
 
         rel = os.path.relpath(dirpath, project_root)
         total = _cs_count(dirpath) + sum(_cs_count(os.path.join(dirpath, d)) for d in role_dirs)
-
         if total < MIN_DOMAIN_FILES:
             problems.append(
-                (rel, f'域内只有 {total} 个 .cs，不足以按作用分层（需 >= {MIN_DOMAIN_FILES}）'))
-            continue
-
-        for d in role_dirs:
-            n = _cs_count(os.path.join(dirpath, d))
-            if n < MIN_ROLE_FILES:
-                problems.append(
-                    (rel, f'{d}/ 只有 {n} 个文件（需 >= {MIN_ROLE_FILES}，否则就是给单个文件开文件夹）'))
+                (rel, f'域内只有 {total} 个 .cs，不足 {MIN_DOMAIN_FILES} 个，不该按作用分层'))
 
     return problems
 

@@ -1,5 +1,8 @@
-using NcLink.Client.Devices;
+using NcLink.Client.Devices.Interfaces;
+using NcLink.Client.Devices.Models;
+using NcLink.Client.Devices.Engine;
 using Microsoft.Extensions.Logging.Abstractions;
+using NcLink.Exceptions;
 
 namespace NcLink.Tests.Client;
 

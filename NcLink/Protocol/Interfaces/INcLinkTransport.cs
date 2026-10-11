@@ -1,4 +1,5 @@
 using NcLink.Protocol.Models;
+using NcLink.Exceptions;
 namespace NcLink.Protocol.Interfaces;
 
 /// <summary>
@@ -38,7 +39,17 @@ public interface INcLinkTransport : IDisposable, IAsyncDisposable
     /// <summary>取消订阅。</summary>
     Task UnsubscribeAsync(string topic, CancellationToken cancellationToken = default);
 
-    /// <summary>发布原始字节。序列化由 <see cref="INcLinkCodec"/> 负责，传输层只搬字节。</summary>
+    /// <summary>
+    /// 发布原始字节。序列化由 <see cref="INcLinkCodec"/> 负责，传输层只搬字节。
+    /// </summary>
+    /// <exception cref="NcLinkNotConnectedException">
+    /// 尚未连接或连接已断开。<b>实现必须抛这个类型</b>——调用方靠它区分
+    /// "没连上"与"发出去但设备没回"，两者要给使用者不同的错误。
+    /// </exception>
+    /// <remarks>
+    /// 这条以前没写：按 <see cref="INcLinkTransport"/> 自己实现传输的第三方，
+    /// 只能去翻 <c>MqttTransport</c> 才知道该抛什么。
+    /// </remarks>
     Task PublishAsync(string topic, byte[] payload, CancellationToken cancellationToken = default);
 
     /// <summary>收到任意报文时触发。</summary>

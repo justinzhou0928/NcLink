@@ -1,4 +1,4 @@
-using NcLink.Client.Devices;
+using NcLink.Client.Devices.Models;
 using NcLink.Client.Query.Models;
 
 namespace NcLink.Client.Query.Interfaces;

@@ -4,9 +4,11 @@ using NcLink.Protocol.Interfaces;
 using NcLink.Protocol.Models;
 using NcLink.Protocol.Engine;
 using NcLink.Logging;
-using NcLink.Client.Connection;
+using NcLink.Client.Connection.Interfaces;
+using NcLink.Client.Connection.Models;
+using NcLink.Client.Connection.Options;
 
-namespace NcLink.Client.Connection;
+namespace NcLink.Client.Connection.Engine;
 
 /// <summary><see cref="IRequestPipeline"/> 的默认实现。</summary>
 internal sealed partial class RequestPipeline : IRequestPipeline, IDisposable

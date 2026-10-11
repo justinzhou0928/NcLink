@@ -1,8 +1,8 @@
-using NcLink.Client.Devices;
+using NcLink.Client.Devices.Models;
 using System.Text.Json;
 using NcLink.Protocol.Engine;
 
-namespace NcLink.Client.Devices;
+namespace NcLink.Client.Devices.Engine;
 
 /// <summary>
 /// 设备模型解析器：把 model.json 文本解析为 <see cref="DeviceModel"/>。

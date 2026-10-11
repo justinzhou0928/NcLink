@@ -1,4 +1,5 @@
-namespace NcLink.Client.Connection;
+using NcLink.Client.Connection.Engine;
+namespace NcLink.Client.Connection.Options;
 
 /// <summary>
 /// 客户端配置：**协议层与连接层**的通用设置。

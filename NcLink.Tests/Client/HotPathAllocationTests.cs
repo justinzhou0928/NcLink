@@ -1,3 +1,5 @@
+using NcLink.Client.Devices.Models;
+using NcLink.Client.Devices.Engine;
 using System.Text;
 using NcLink.Protocol.Models;
 using NcLink.Protocol.Engine;
@@ -120,4 +122,51 @@ public sealed class HotPathAllocationTests
 
     private static byte[] CodecByUtf8(QueryRequestMessage message)
         => NcLinkJson.SerializeToUtf8Bytes(message, message.GetType());
+
+    [Fact]
+    public void SampleChannels_ShouldNotRebuildDictionaryPerAccess()
+    {
+        // 采样转发**每帧**都要查这张表（SampleMultiplexer → GetChannelItemIds）。
+        // 它此前是每次访问都 LINQ 重建的属性，等于每帧把全部节点扫一遍再建一个字典。
+        var model = SampleDeviceModel.Parse("ALLOC_PROBE");
+
+        // 旧实现，逐字照抄当时那行
+        static int Rebuild(DeviceModel m)
+            => m.Nodes.Where(n => n.SampleChannel is not null)
+                      .ToDictionary(n => n.Id, n => n.SampleChannel!, StringComparer.Ordinal)
+                      .Count;
+
+        // 现实现：Build 时建一次
+        static int Cached(DeviceModel m) => m.SampleChannels.Count;
+
+        // 预热
+        for (var i = 0; i < 20; i++) { _ = Rebuild(model); _ = Cached(model); }
+
+        var rebuildBytes = MeasureAction(() => Rebuild(model));
+        var cachedBytes = MeasureAction(() => Cached(model));
+
+        Console.WriteLine($"  模型节点数：{model.Nodes.Count}，采样通道：{model.SampleChannels.Count}");
+        Console.WriteLine($"  每次重建字典：{rebuildBytes,9:N0} 字节 / {Iterations} 次");
+        Console.WriteLine($"  缓存后查表　：{cachedBytes,9:N0} 字节 / {Iterations} 次");
+        Console.WriteLine($"  每帧省下　　：{(rebuildBytes - cachedBytes) / (double)Iterations,9:N1} 字节");
+
+        // 缓存后只是读一个已建好的字典；留 10 倍余量防抖动
+        // 实测（本机 net10.0，2000 次，内置模型 62 个节点 / 2 个采样通道）：
+        //   每次重建字典 576,000 字节（288/帧）  vs  缓存后查表 0 字节
+        // 采样转发每帧都查它，所以这 288 字节是**每帧**的。留 10 倍余量防抖动。
+        Assert.True(
+            cachedBytes * 10 < rebuildBytes,
+            $"缓存后查表应远低于每帧重建：重建 {rebuildBytes} / 缓存 {cachedBytes}");
+    }
+
+    private static long MeasureAction(Action action)
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < Iterations; i++) action();
+        return GC.GetAllocatedBytesForCurrentThread() - before;
+    }
 }

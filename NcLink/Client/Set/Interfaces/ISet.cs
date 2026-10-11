@@ -1,6 +1,7 @@
 using NcLink.Client.Query.Models;
+using NcLink.Client.Files.Interfaces;
 
-namespace NcLink.Client.Set;
+namespace NcLink.Client.Set.Interfaces;
 
 /// <summary>
 /// 设置能力：按数据项写值、位操作。

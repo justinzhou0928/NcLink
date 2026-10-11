@@ -1,10 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using NcLink.Client;
-using NcLink.Client.Devices;
+using NcLink.Client.Devices.Engine;
 using NcLink;
 using NcLink.Protocol.Interfaces;
 using NcLink.Tests.Fakes;
 using NcLink.Transport.Mqtt;
+using NcLink.Client.Files.Interfaces;
 
 namespace NcLink.Tests.Extensions;
 
@@ -131,11 +132,11 @@ public sealed class ContainerLifetimeTests
             provider.GetRequiredService<NcLink.Client.Query.Engine.DataItemReader>(),
             provider.GetRequiredService<NcLink.Client.Query.Interfaces.IQuery>());
         Assert.Same(
-            provider.GetRequiredService<NcLink.Client.Set.DataItemWriter>(),
-            provider.GetRequiredService<NcLink.Client.Set.ISet>());
+            provider.GetRequiredService<NcLink.Client.Set.Engine.DataItemWriter>(),
+            provider.GetRequiredService<NcLink.Client.Set.Interfaces.ISet>());
 
         // 文件能力：门面的 Files 就是容器里的 IFileTransfer
-        Assert.Same(client.Files, provider.GetRequiredService<NcLink.Client.Files.IFileTransfer>());
+        Assert.Same(client.Files, provider.GetRequiredService<NcLink.Client.Files.Interfaces.IFileTransfer>());
 
         // 传输是单例
         Assert.Same(

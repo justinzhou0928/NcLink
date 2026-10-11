@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 using NcLink.ApiServer.Operations;
 using NcLink.ApiServer.Models;
 using NcLink.Client.Query.Interfaces;
-using NcLink.Client.Set;
+using NcLink.Client.Set.Interfaces;
 
 namespace NcLink.ApiServer.Controllers.V2;
 

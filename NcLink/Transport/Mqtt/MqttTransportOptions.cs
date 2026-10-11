@@ -1,5 +1,6 @@
 using MQTTnet;
 using MQTTnet.Protocol;
+using NcLink.Client.Connection.Options;
 
 namespace NcLink.Transport.Mqtt;
 

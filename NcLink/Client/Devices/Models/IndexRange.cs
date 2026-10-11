@@ -1,4 +1,4 @@
-namespace NcLink.Client.Devices;
+namespace NcLink.Client.Devices.Models;
 
 /// <summary>
 /// NC-Link 索引区间。协议里索引用字符串表达：单点 <c>"13"</c>、区间 <c>"0-9"</c>。

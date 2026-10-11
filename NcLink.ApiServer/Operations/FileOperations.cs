@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using NcLink.ApiServer.Logging;
 using NcLink.ApiServer.Models;
-using NcLink.Client.Files;
+using NcLink.Client.Files.Interfaces;
 
 namespace NcLink.ApiServer.Operations;
 

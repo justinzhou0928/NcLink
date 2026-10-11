@@ -102,7 +102,11 @@ app.UseStatusCodePages(async context =>
 // API 文档：MapOpenApi 一行就够（官方脚手架就是这么写的），
 // Swagger UI 指过去即可。
 app.MapOpenApi();
-app.UseSwaggerUI(o => o.SwaggerEndpoint("/openapi/v1.json", "NcLink ApiServer"));
+
+// 默认开（官方就无条件开），但生产建议关掉：微软文档把"不暴露交互式 UI"
+// 列为安全最佳实践。关掉不影响 /openapi/v1.json 本身。
+if (options.SwaggerUiEnabled)
+    app.UseSwaggerUI(o => o.SwaggerEndpoint("/openapi/v1.json", "NcLink ApiServer"));
 
 // 路由由控制器上的 [Route] 声明，与厂家结构一一对应（对照表见 AGENTS.md）
 app.MapControllers();

@@ -1,6 +1,6 @@
 using NcLink.Client.Query.Models;
 
-namespace NcLink.Client.Set;
+namespace NcLink.Client.Set.Interfaces;
 
 /// <summary>
 /// 写数据项的最小操作面。

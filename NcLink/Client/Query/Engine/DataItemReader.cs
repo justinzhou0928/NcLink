@@ -1,9 +1,12 @@
-using NcLink.Client.Devices;
-using NcLink.Client.Connection;
+using NcLink.Client.Devices.Models;
+using NcLink.Client.Devices.Engine;
+using NcLink.Client.Connection.Engine;
 using NcLink.Client.Query.Interfaces;
 using NcLink.Client.Query.Models;
 using NcLink.Protocol.Interfaces;
 using NcLink.Protocol.Models;
+using NcLink.Exceptions;
+using NcLink.Client.Files.Engine;
 
 namespace NcLink.Client.Query.Engine;
 
@@ -12,7 +15,7 @@ namespace NcLink.Client.Query.Engine;
 /// （<c>get_value</c> / <c>get_length</c> / <c>get_keys</c> / <c>get_attributes</c>），
 /// 以及设备模型探测与采样订阅的实现。
 ///
-/// 写入在 <c>NcLink.Client.Set.DataItemWriter</c>——两者走同一个数据项端点，
+/// 写入在 <c>NcLink.Client.Set.Engine.DataItemWriter</c>——两者走同一个数据项端点，
 /// 但操作名与响应结构不同，因此分开实现，避免"名为查询、实则也写"的误导。
 /// 文件传输两者都用，见 <c>FileTransfer</c> 的构造函数。
 /// </summary>

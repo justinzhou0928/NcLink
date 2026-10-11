@@ -1,6 +1,6 @@
-using NcLink.Client.Files;
+using NcLink.Client.Files.Models;
 
-namespace NcLink.Client.Files;
+namespace NcLink.Client.Files.Interfaces;
 /// <summary>
 /// G 代码文件上下行。
 ///

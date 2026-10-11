@@ -1,5 +1,5 @@
 using System.Text.Json;
-using NcLink.Client.Devices;
+using NcLink.Client.Devices.Models;
 using NcLink.Client.Query.Models;
 using NcLink.ApiServer.Models;
 using NcLink.Protocol.Models;

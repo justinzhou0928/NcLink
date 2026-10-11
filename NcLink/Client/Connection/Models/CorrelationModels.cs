@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace NcLink.Client.Connection;
+namespace NcLink.Client.Connection.Models;
 
 /// <summary>
 /// 一次请求的关联上下文，供匹配器判定"这条响应是不是我要的"。

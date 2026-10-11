@@ -1,6 +1,6 @@
-using NcLink.Client.Files;
+using NcLink.Client.Files.Interfaces;
 using NcLink.Client.Query.Interfaces;
-using NcLink.Client.Set;
+using NcLink.Client.Set.Interfaces;
 using NcLink.Protocol.Models;
 
 namespace NcLink.Client;

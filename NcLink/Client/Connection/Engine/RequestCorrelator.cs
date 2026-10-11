@@ -5,9 +5,11 @@ using NcLink.Protocol.Engine;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NcLink.Logging;
-using NcLink.Client.Connection;
+using NcLink.Client.Connection.Models;
+using NcLink.Client.Connection.Options;
+using NcLink.Exceptions;
 
-namespace NcLink.Client.Connection;
+namespace NcLink.Client.Connection.Engine;
 
 /// <summary>
 /// 请求-响应关联器的默认实现。

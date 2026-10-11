@@ -1,6 +1,7 @@
 using NcLink.Client.Query.Engine;
+using NcLink.Exceptions;
 
-namespace NcLink.Client.Devices;
+namespace NcLink.Client.Devices.Models;
 
 /// <summary>
 /// 设备模型（不可变）。负责路径 / 标识 → 数据项 id 的解析。

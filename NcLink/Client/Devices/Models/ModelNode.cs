@@ -1,4 +1,4 @@
-namespace NcLink.Client.Devices;
+namespace NcLink.Client.Devices.Models;
 
 /// <summary>
 /// 节点标识（协议里由 <c>type</c> 与 <c>number</c> 组成）。

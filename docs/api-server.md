@@ -345,7 +345,14 @@ dotnet run --project NcLink.ApiServer -- --ApiServer:Port=19003 --ApiServer:Repr
 
 ### v2 端点
 
-官方同时暴露 `/v2/**`。`javap` 反查显示 `DataApi2` 与 `DataApi` 的**方法签名只差一个
-`HttpServletRequest`**（推测用于客户端标识），业务逻辑同构。
+官方同时暴露 `/v2/**`。反编译显示 `DataApi2` 与 `DataApi` 的对外形状**完全一致**
+（同样的 URL、方法、参数、响应），差别只在实现里。
 
-**本项目暂未实现 v2**——先确认真有调用方需要，避免凭空造接口。
+**本项目已实现 v2**，而且**默认复用 v1 的正确实现**——对外形状相同就不该有两份逻辑。
+官方的 v2 是坏的（根因见下文「v2 为什么是坏的」），我们把它修好了。
+
+`ApiServerOptions.ReproduceOfficialV2Defects` 打开时改为逐项复刻官方缺陷，
+用于向厂家证明"我们完整理解你的实现"。默认关闭。
+
+> 这一节此前写的是"暂未实现 v2，先确认真有调用方需要"——那是早期状态，已过时。
+> v2 现在有完整实现，并由 `NcLink.Conformance` 逐条比对官方（6/6 达成）。

@@ -254,7 +254,12 @@ Client 层的 `NcLinkNotConnectedException`。按 §2.5 自己实现 `INcLinkTra
 
 ## 待决事项
 
-1. **先修哪一批？** 建议顺序：静默错误（第一节 1-2、第二节 1-3）→ 文档不符（3-4）→ 精简（第三节）
-2. **协议规则的设备侧验证**：第二节第 2、6 条需要真机或官方模拟器确认"设备是否强制"
-3. **精简的破坏性**：第三节里删 `public` 成员（`NcLinkCodeNames.ToWire`、编码器成员等）
-   需按包版本处理；删 `internal` 的（`IRequestCorrelator`、`RequestContext` 成员）可随时做
+1. ~~先修哪一批？~~ **已修完**：静默错误（`SetAsync` 丢区间/多索引、`DeviceModelCache`
+   取消串台）、对外契约（文件下载越界与 offset/length 成对）、文档不符、精简
+   （删 `IRequestCorrelator` 与 `RequestContext` 只写成员、合并 Query/Set 骨架）。
+   逐条结果见第六节。
+2. **协议规则的设备侧验证**（需要真机，不能推断）：
+   - `SetParams.length` 是否是设备**强制**要求（我们已按厂家补上该字段）
+   - 路径字符集正则（厂家对 add/delete 与列目录有校验，我们未实现）设备是否强制
+3. **精简的破坏性**：第六节里删掉的都是 `internal`（`IRequestCorrelator`、
+   `RequestContext` 成员）或经核实无人使用的，`public` 面未做破坏性删减。

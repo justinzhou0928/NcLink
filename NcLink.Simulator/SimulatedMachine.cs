@@ -5,7 +5,8 @@ using MQTTnet.Protocol;
 using NcLink.Protocol.Interfaces;
 using NcLink.Protocol.Models;
 using NcLink.Protocol.Engine;
-using NcLink.Client.Devices;
+using NcLink.Client.Devices.Models;
+using NcLink.Client.Devices.Engine;
 
 namespace NcLink.Simulator;
 

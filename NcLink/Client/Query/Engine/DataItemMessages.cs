@@ -1,10 +1,13 @@
-using NcLink.Client.Devices;
+using NcLink.Client.Devices.Models;
 using System.Text.Json;
-using NcLink.Client.Connection;
+using NcLink.Client.Connection.Models;
+using NcLink.Client.Connection.Engine;
 using NcLink.Client.Query.Models;
 using NcLink.Protocol.Interfaces;
 using NcLink.Protocol.Models;
 using NcLink.Protocol.Engine;
+using NcLink.Exceptions;
+using NcLink.Client.Set.Engine;
 
 namespace NcLink.Client.Query.Engine;
 

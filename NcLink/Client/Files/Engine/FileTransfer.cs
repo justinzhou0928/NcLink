@@ -2,12 +2,14 @@ using NcLink.Protocol.Models;
 using NcLink.Protocol.Engine;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using NcLink.Client.Files;
+using NcLink.Client.Files.Interfaces;
+using NcLink.Client.Files.Models;
 using NcLink.Client.Query.Interfaces;
 using NcLink.Client.Query.Models;
-using NcLink.Client.Set;
+using NcLink.Client.Set.Interfaces;
+using NcLink.Exceptions;
 
-namespace NcLink.Client.Files;
+namespace NcLink.Client.Files.Engine;
 
 /// <summary>
 /// G 代码文件上下行的默认实现。
@@ -36,10 +38,6 @@ internal sealed class FileTransfer : IFileTransfer
         _writer = writer ?? throw new ArgumentNullException(nameof(writer));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
-
-    public int MaxBlockSize => FileTransferLimits.MaxBlockSize;
-
-    public int RecommendedBlockSize => FileTransferLimits.RecommendedBlockSize;
 
     #region 目录
 

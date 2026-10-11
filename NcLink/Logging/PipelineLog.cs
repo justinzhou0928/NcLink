@@ -17,8 +17,4 @@ internal static partial class PipelineLog
     [LoggerMessage(EventId = 2003, Level = LogLevel.Debug,
         Message = "已订阅全部响应主题，共 {Count} 个通配符")]
     internal static partial void LogSubscribedAllResponseTopics(ILogger logger, int count);
-
-    [LoggerMessage(EventId = 2004, Level = LogLevel.Warning,
-        Message = "连接状态变化：{State}")]
-    internal static partial void LogConnectionStateChanged(ILogger logger, NcLinkConnectionState state);
 }

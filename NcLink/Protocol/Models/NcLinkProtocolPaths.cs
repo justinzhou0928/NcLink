@@ -1,4 +1,5 @@
 using NcLink.Protocol.Engine;
+using NcLink.Client.Devices.Models;
 namespace NcLink.Protocol.Models;
 
 /// <summary>

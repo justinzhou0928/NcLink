@@ -30,7 +30,17 @@ public interface INcLinkTopics
     /// <summary>探测设值响应：<c>Probe/Set/Response/{deviceId}</c>。</summary>
     string ProbeSetResponse(string deviceId);
 
-    /// <summary>版本探测：<c>Probe/Version/{deviceId}</c>。</summary>
+    /// <summary>
+    /// 版本探测请求：<c>Probe/Version/{deviceId}</c>。
+    /// </summary>
+    /// <remarks>
+    /// <b>这条请求主题未经验证。</b>实测试过 <c>Probe/Version/Request/{SN}</c> 与
+    /// <c>Probe/Version/{SN}</c>，设备<b>均无响应</b>；而设备确实订阅了
+    /// <see cref="ProbeVersionResponse"/>（那条是设备发、平台收，已确认）。
+    /// 因此本方法只是把前缀按官方 <c>Topic</c> 常量拼出来，
+    /// <b>库内没有任何地方真的往它发布</b>。真机确认前不要依赖它。
+    /// 详见 <c>docs/official-simulator-verified-protocol.md</c> 的「尚未验证」。
+    /// </remarks>
     string ProbeVersion(string deviceId);
 
     /// <summary>

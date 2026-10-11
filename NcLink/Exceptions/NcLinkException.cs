@@ -1,4 +1,4 @@
-namespace NcLink;
+namespace NcLink.Exceptions;
 
 /// <summary>
 /// NC-Link 所有异常的共同基类。

@@ -6,7 +6,7 @@ namespace NcLink.Protocol.Engine;
 /// <see cref="JsonElement"/> 取值辅助。
 /// 设备返回值类型不固定（整数／浮点／字符串／对象／null），这里集中做安全转换。
 /// </summary>
-public static class NcJsonValue
+internal static class NcJsonValue
 {
     /// <summary>转 int；浮点截断，数字字符串可解析。</summary>
     public static int ToInt32(JsonElement element)

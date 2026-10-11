@@ -69,79 +69,70 @@ python tools/test-check-structure.py       # 审查脚本自身的自测（改�
 
 ### 目录组织约定
 
-**顶层按功能域分；域够大时，域内再按作用分。**
-
-两级判据，与代码规模挂钩：
+**两级判据，与代码规模挂钩：**
 
 1. **顶层按功能域分** —— 找东西时按"它是干什么的"去找。
-2. **域内是否再按作用分（`Interfaces/` `Models/` `Parsers/` `Engine/` `Options/` `Exceptions/`）**：
-   - 该域的 `.cs` 文件数 **>= 8**，**且**
-   - 分层后每个作用文件夹 **>= 2** 个文件
+2. **域内按作用分**（`Interfaces/` `Models/` `Parsers/` `Engine/` `Options/` `Exceptions/`），
+   门槛是**域内至少 3 个 `.cs` 文件**。不足 3 个就保持扁平。
 
-   两条都满足才分层；否则保持扁平。**不给单个文件开文件夹。**
+**为什么门槛是 3**：本仓库曾把**每个**域都切成四层，得到 24 个文件夹、
+11 个只装 1 个文件（`Client/Devices/Interfaces/` 里就 11 行）。但一刀切全扁平也不对——
+`Query`(11)、`Protocol`(10) 这么大的域，按作用分层确实好找。
+把门槛写成"域内至少 N 个文件才允许分层"，**规则随代码规模自己生效**，
+不需要每次靠讨论决定。
+
+**单文件的作用夹是允许的**：`Interfaces/IDeviceProbe.cs`（13 行）与
+"给一个文件随便开个文件夹"不是一回事——前者是有意义的分类（"这是本域的契约"），
+后者什么都不说明。因此规则只管**域的规模**，不管单个作用夹里几个文件。
+
+**三个刻意不分层的例外**（都有具体理由，不是漏做）：
+
+| 位置 | 文件数 | 为什么不分 |
+|---|---|---|
+| `Client/` | 2 | 就是 `INcLinkClient` + `NcLinkClient` 一对，分完是两个各 1 个的空壳 |
+| `Logging/` | 5 | 5 个全是同一作用（静态日志类），分了只是多一层 |
+| `Transport/Mqtt/` | 3 | 分完是 3 个各 1 个的空壳，且其中一个是 DI 扩展 —— 与库根的 `ServiceCollectionExtensions.cs` 同类，本来就不进作用夹 |
 
 ```
 NcLink/
-├── NcLinkException.cs                      异常层次（10 个类型，库级公开契约）
-├── NcLinkClient.cs / INcLinkClient.cs      门面
+├── NcLinkClient.cs / INcLinkClient.cs      门面（2 个，接口+实现，不分层）
 ├── ServiceCollectionExtensions.cs          依赖注入注册
 ├── NcLinkHostedService.cs                  宿主集成
-├── Protocol/                               线上格式（域 10 个文件 → 分层）
+├── Exceptions/                             异常层次（10 个类型，库级公开契约）
+├── Protocol/                               线上格式（10 个 → 按作用分）
 │   ├── Interfaces/  INcLinkCodec / INcLinkTopics / INcLinkTransport
 │   ├── Models/      NcLinkEnvelope / NcLinkMessages / NcLinkOperation / NcLinkProtocolPaths
 │   └── Engine/      JsonNcLinkCodec / NcJsonValue / NcLinkTopics
-├── Logging/                                集中式日志事件（5 个，扁平）
-├── Transport/Mqtt/                         MQTT 传输实现（3 个，扁平）
+├── Logging/                                集中式日志事件（5 个，全同一作用 → 不分）
+├── Transport/Mqtt/                         MQTT 传输实现（3 个 → 不分，见下）
 └── Client/
-    ├── Connection/   机制：连接、请求关联、配置（6 个，扁平）
-    ├── Devices/      官方第 8 章「数据字典」（9 个，扁平）
-    ├── Files/        官方 5.2「获取/下发文件」（4 个，扁平）
-    ├── Set/          官方 5.1「设置」（3 个，扁平）
-    └── Query/        官方 5.1「查询」+ 采样（域 11 个文件 → 分层）
-        ├── Interfaces/  IQuery / IDataItemReader / ISampling / ISampleSubscription
-        ├── Models/      DataItemRequest / DataItemResult / SampleFrame
-        └── Engine/      DataItemReader / DataItemMessages / SampleSubscriptions / SampleMultiplexer
+    ├── Connection/   6 个 → Interfaces(1) Models(1) Options(2) Engine(2)
+    ├── Devices/      9 个 → Interfaces(1) Models(5) Engine(3)
+    ├── Files/        4 个 → Interfaces(1) Models(1) Engine(2)
+    ├── Set/          3 个 → Interfaces(2) Engine(1)
+    └── Query/       11 个 → Interfaces(4) Models(3) Engine(4)
 ```
 
-**为什么用规模当门槛，而不是"一律分"或"一律不分"**：
-
-本仓库曾把**每个**域都切成 `Interfaces/` + `Models/` + `Parsers/` + `Engine/`，
-结果 57 个文件散在 **24 个文件夹**里，其中 **11 个只装 1 个文件**——
-`Client/Devices/Interfaces/` 里就 11 行，命名空间深到 5 段
-（`NcLink.Client.Connection.Engine.RequestCorrelator`）。
-
-但一刀切全扁平也不对：`Query`(11) 和 `Protocol`(10) 这么大的域，
-按作用分层确实好找。
-
-**把门槛写成统一判据后，规则会随代码规模自己生效**：库小的时候不许分，
-某个域长大了自然放行——不需要每次靠讨论决定。
-这条由 `check-structure.py` 的 `[2]` 强制：域 `< 8` 却分层、或某个作用文件夹
-只有 1 个文件，都**硬失败**。项目根的直接子项（如 `NcLink.ApiServer/Models/`）不受此限。
-
 **功能名以官方手册为准**：`Query` / `Set` 对应官方 5.1 的「查询」「设置」，
-`Files` 对应官方 5.2 的「获取/下发文件」。
-不要自创功能名——手册怎么叫，代码就怎么叫，读文档与读代码才对得上。
+`Files` 对应官方 5.2 的「获取/下发文件」。不要自创功能名。
 
 **机制不提升为功能域**。连接管理、请求关联、配置都是**实现手段**，
-不是对外功能，因此统一收在 `Connection/` 下，而不是与 `Query`/`Set` 平级。
+不是对外功能，因此统一收在 `Client/Connection/` 下，不与 `Query`/`Set` 平级。
 
-**异常层次放在库根**（`NcLinkException.cs`，命名空间 `NcLink`），不跟着机制走。
-它是**库级公开契约**：8 个层里有 7 个引用它，且其中一半的类型
+**但异常层次不是机制，是库级公开契约** —— 它放 `Exceptions/`。
+判据是引用面：实测 8 个层里有 7 个引用它，且其中一半的类型
 （`NcLinkInvalidRequestException` / `NcLinkModelPathNotFoundException` /
-`NcLinkProtocolException`）跟"连接"无关。放库根还让传输层不必反向依赖
-Client 层。.NET 惯例同此（`System.Text.Json.JsonException` 就在根命名空间）。
-
-**一个功能域一个文件夹**：写入的实现属 `Set/`，不要塞进 `Query/`。
+`NcLinkProtocolException`）跟"连接"无关。
 
 **关于可见性**：
 
 - 同一个文件夹里 **public 与 internal 类型可以共存**——
   对外发布的是 public（`IQuery` / `IFileTransfer`），
-  只给本程序集用的是 internal（`IRequestPipeline` / `DataItemOperations`）。
-- **测试项目不适用可见性规则**：xUnit 只发现 public 测试类，测试代码本就是 public。
+  只给本程序集用的是 internal（`IRequestPipeline` / `NcJsonValue`）。
+- **测试项目不适用可见性规则**：xUnit 只发现 public 测试类。
 
 **命名空间必须与文件夹一致**（`Client/Query/Engine/` → `NcLink.Client.Query.Engine`）——
-这条由 `check-structure.py` 的 `[1]` 强制。
+由 `check-structure.py` 的 `[1]` 强制。
 
 ### 命名：类型名说明"它是什么"，不用泛化后缀
 

@@ -1,4 +1,4 @@
-namespace NcLink.Client.Devices;
+namespace NcLink.Client.Devices.Models;
 
 /// <summary>
 /// 设备模型文件的原始结构，与 model.json 一一对应。

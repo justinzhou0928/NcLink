@@ -3,6 +3,7 @@ using NcLink.Tests.Fakes;
 using NcLink.Protocol.Models;
 using NcLink.Client.Query.Models;
 using NcLink.Client.Query.Engine;
+using NcLink.Exceptions;
 
 namespace NcLink.Tests.Client;
 

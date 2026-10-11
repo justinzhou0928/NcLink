@@ -58,7 +58,7 @@ public sealed class ModelController(
     {
         try
         {
-            if (!NcLink.Client.Devices.DeviceModelParser.TryParse(
+            if (!NcLink.Client.Devices.Engine.DeviceModelParser.TryParse(
                     model.GetRawText(), deviceId, out var parsed, out var error))
             {
                 ApiServerLog.LogBadDataRequest(logger, $"模型解析失败：{error}");

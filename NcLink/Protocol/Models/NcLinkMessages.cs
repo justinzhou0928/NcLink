@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using NcLink.Client.Devices.Engine;
 
 namespace NcLink.Protocol.Models;
 #region 注册

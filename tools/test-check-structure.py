@@ -191,16 +191,18 @@ def _domain(prefix, own, per_role):
 
 
 KIND_CASES = [
-    # 域 8 个文件、每层 2 个 —— 达标，放行
+    # 域 8 个文件、每层 2 个 —— 达标
     ('域够大且每层 >=2 应放行', _domain('Big', 2, 2), False),
-    # 域 4 个文件 —— 文件太少，分层属于过度拆分
-    ('域太小却分层应被抓到', _domain('Small', 0, 2) + [os.path.join('Small', 'x.cs')], True),
-    # 域够大（10 个文件），但 Interfaces 只有 1 个 —— 正是"给单个文件开文件夹"
-    ('作用夹只有 1 个文件应被抓到',
-     [os.path.join('Thin', f'N{i}.cs') for i in range(3)]
-     + [os.path.join('Thin', 'Interfaces', 'only.cs')]
-     + [os.path.join('Thin', 'Models', f'M{i}.cs') for i in range(3)]
-     + [os.path.join('Thin', 'Engine', f'E{i}.cs') for i in range(3)], True),
+    # 域刚好 3 个文件（门槛值）—— 放行
+    ('域刚好到门槛应放行', _domain('Edge', 1, 1), False),
+    # 域总共只有 2 个 .cs（含作用夹里的）—— 太少，分层属于过度拆分
+    ('域太小却分层应被抓到',
+     [os.path.join('Small', 'Interfaces', 'I.cs'), os.path.join('Small', 'Engine', 'E.cs')], True),
+    # 单文件的 Interfaces/ 现在**允许**：它是有意义的分类（"这是本域的契约"），
+    # 与"给一个文件随便开个文件夹"不是一回事
+    ('单文件作用夹应放行',
+     [os.path.join('Thin', f'N{i}.cs') for i in range(2)]
+     + [os.path.join('Thin', 'Interfaces', 'only.cs')], False),
     # 项目根下的 Models 是 .NET 常规布局
     ('项目根下的 Models 应放行', [os.path.join('Models', 'A.cs')], False),
     # 不分层就没事

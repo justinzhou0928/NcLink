@@ -1,4 +1,4 @@
-namespace NcLink.Client.Connection;
+namespace NcLink.Client.Connection.Options;
 
 /// <summary>
 /// 请求-响应关联的语义设置。

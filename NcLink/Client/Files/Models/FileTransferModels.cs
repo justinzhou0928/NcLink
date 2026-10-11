@@ -1,5 +1,5 @@
 
-namespace NcLink.Client.Files;
+namespace NcLink.Client.Files.Models;
 /// <summary>G 代码文件信息。</summary>
 public sealed class FileEntry
 {
@@ -38,9 +38,6 @@ public sealed class FileTransferProgress
 
     /// <summary>总字节数；未知时为 null。</summary>
     public long? Total { get; }
-
-    /// <summary>进度比例（0-1）；总量未知时为 null。</summary>
-    public double? Fraction => Total is > 0 ? (double)Transferred / Total.Value : null;
 }
 
 /// <summary>

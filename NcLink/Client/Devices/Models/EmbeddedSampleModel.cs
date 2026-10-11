@@ -1,7 +1,6 @@
 using System.Reflection;
-using NcLink.Client.Devices;
 
-namespace NcLink.Client.Devices;
+namespace NcLink.Client.Devices.Models;
 
 /// <summary>
 /// 内置示例设备模型的读取入口（只提供 JSON 文本）。

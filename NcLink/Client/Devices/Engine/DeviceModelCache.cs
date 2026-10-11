@@ -1,9 +1,11 @@
-using NcLink.Client.Devices;
+using NcLink.Client.Devices.Interfaces;
+using NcLink.Client.Devices.Models;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using NcLink.Exceptions;
 
-namespace NcLink.Client.Devices;
+namespace NcLink.Client.Devices.Engine;
 
 /// <summary>
 /// 设备模型缓存：命中则直接返回，未命中则探测并解析模型文件。

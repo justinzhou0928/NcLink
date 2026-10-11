@@ -1,4 +1,4 @@
-using NcLink.Client.Devices;
+using NcLink.Client.Devices.Engine;
 namespace NcLink.Tests.Model;
 
 /// <summary>测试用模型：结构参考官方 model.json，但只保留必要节点。</summary>
@@ -56,6 +56,6 @@ internal static class TestModel
     }
     """;
 
-    public static NcLink.Client.Devices.DeviceModel Parse(string deviceId = DeviceId)
+    public static NcLink.Client.Devices.Models.DeviceModel Parse(string deviceId = DeviceId)
         => DeviceModelParser.Parse(Json, deviceId);
 }

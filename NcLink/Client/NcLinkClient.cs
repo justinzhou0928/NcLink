@@ -1,11 +1,13 @@
 using Microsoft.Extensions.Logging;
-using NcLink.Client.Connection;
-using NcLink.Client.Files;
+using NcLink.Client.Connection.Engine;
+using NcLink.Client.Files.Interfaces;
+using NcLink.Client.Files.Engine;
 using NcLink.Client;
 using NcLink.Client.Query.Interfaces;
 using NcLink.Client.Query.Models;
 using NcLink.Client.Query.Engine;
-using NcLink.Client.Set;
+using NcLink.Client.Set.Interfaces;
+using NcLink.Client.Set.Engine;
 using NcLink.Protocol.Interfaces;
 using NcLink.Protocol.Models;
 
@@ -78,7 +80,7 @@ public sealed class NcLinkClient : INcLinkClient, IDisposable
     }
 
     /// <inheritdoc />
-    public void RegisterModel(Devices.DeviceModel model)
+    public void RegisterModel(Devices.Models.DeviceModel model)
     {
         ThrowIfDisposed();
         _query.RegisterModel(model);
@@ -89,7 +91,7 @@ public sealed class NcLinkClient : INcLinkClient, IDisposable
     #region 查询（官方 5.1 查询）
 
     /// <inheritdoc />
-    public Task<Devices.DeviceModel> ProbeAsync(
+    public Task<Devices.Models.DeviceModel> ProbeAsync(
         string deviceId, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -97,7 +99,7 @@ public sealed class NcLinkClient : INcLinkClient, IDisposable
     }
 
     /// <inheritdoc />
-    public Task<Devices.DeviceModel> GetModelAsync(
+    public Task<Devices.Models.DeviceModel> GetModelAsync(
         string deviceId, bool refresh = false, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();

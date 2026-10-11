@@ -1,7 +1,8 @@
 using System.Diagnostics;
 using NcLink.Protocol.Models;
-using NcLink.Client.Devices;
+using NcLink.Client.Devices.Engine;
 using NcLink.Client.Query.Models;
+using NcLink.Exceptions;
 
 namespace NcLink.Tests.Integration;
 

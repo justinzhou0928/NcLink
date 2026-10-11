@@ -47,18 +47,21 @@ python tools/test-check-structure.py  # 必须全部通过（用例如今 16 个
 **机制不提升为功能域**：连接管理、请求关联、配置都是实现手段，
 收在 `Client/Connection/` 下，不与 `Query`/`Set` 平级。
 
-**但异常层次不是机制，是库级公开契约**——它放**库根**（`NcLink/NcLinkException.cs`，
-命名空间 `NcLink`），不放 `Client/Connection/`。判据是引用面：实测
-**8 个层里有 7 个**引用它（Connection 32 处、Devices 11、Query 11、Files 3、
-Set 1、Transport 2、门面与 DI 3），而它里面一半的类型（`NcLinkInvalidRequestException`、
+**但异常层次不是机制，是库级公开契约**——它放**库根下的 `Exceptions/`**
+（`NcLink/Exceptions/NcLinkException.cs`，命名空间 `NcLink.Exceptions`），
+不跟着任何机制域走。判据是引用面：实测 **8 个层里有 7 个**引用它
+（Connection 32 处、Devices 11、Query 11、Files 3、Set 1、Transport 2、门面与 DI 3），
+而它里面一半的类型（`NcLinkInvalidRequestException`、
 `NcLinkModelPathNotFoundException`、`NcLinkProtocolException`）跟"连接"毫无关系。
 
 放库根还**顺带修掉一条分层问题**：此前 `MqttTransport` 要
 `using NcLink.Client.Connection;` 才能抛 `NcLinkNotConnectedException`，
-传输层因此反向依赖 Client 层；现在它只依赖根命名空间（见 §4）。
+传输层因此反向依赖 Client 层；现在它只 `using NcLink.Exceptions;`（见 §4）。
 
-> 这也是 .NET 的惯例：`System.Text.Json.JsonException`、
-> `Newtonsoft.Json.JsonException` 都在各自库的**根命名空间**，不在子命名空间里。
+> **依据**：微软参考项目 [eShopOnWeb](https://github.com/dotnet-architecture/eShopOnWeb)
+> 的 `src/ApplicationCore/` 就是 `Constants/ Entities/ Exceptions/ Extensions/
+> Interfaces/ Services/ Specifications/`——异常有独立的 `Exceptions/`。
+> 这是"按作用分"在顶层的同一套逻辑（见 §2）。
 
 ---
 
@@ -68,64 +71,65 @@ Set 1、Transport 2、门面与 DI 3），而它里面一半的类型（`NcLinkI
 与文件夹 `Transport/Mqtt/` 一致）。它和 `Client/` 之间隔着
 `INcLinkTransport` 接口——**这才是解耦点，不是程序集边界**。
 
-### 目录：按功能域分；域够大时，域内再按作用分（有脚本强制）
+### 目录：按功能域分；域内够 3 个文件就按作用分（有脚本强制）
 
 **两级判据，与代码规模挂钩：**
 
 1. **顶层按功能域分** —— 找东西时按"它是干什么的"去找。
-2. **域内是否再按作用分**，看规模：
-   - 该域的 `.cs` 文件数 **>= 8**，**且**
-   - 分层后每个作用文件夹 **>= 2** 个文件
+2. **域内按作用分**（`Interfaces/` `Models/` `Parsers/` `Engine/` `Options/` `Exceptions/`），
+   门槛是**域内至少 3 个 `.cs` 文件**。不足 3 个就保持扁平。
 
-   两条都满足才分层；否则保持扁平。**不给单个文件开文件夹。**
+**为什么门槛是 3**：本仓库曾把**每个**域都切成四层，得到 24 个文件夹、
+11 个只装 1 个文件（`Client/Devices/Interfaces/` 里就 11 行）。但一刀切全扁平也不对——
+`Query`(11)、`Protocol`(10) 这么大的域，按作用分层确实好找。
+把门槛写成"域内至少 N 个文件才允许分层"，**规则随代码规模自己生效**，
+不需要每次靠讨论决定。
+
+**单文件的作用夹是允许的**：`Interfaces/IDeviceProbe.cs`（13 行）与
+"给一个文件随便开个文件夹"不是一回事——前者是有意义的分类（"这是本域的契约"），
+后者什么都不说明。因此规则只管**域的规模**，不管单个作用夹里几个文件。
+
+**三个刻意不分层的例外**（都有具体理由，不是漏做）：
+
+| 位置 | 文件数 | 为什么不分 |
+|---|---|---|
+| `Client/` | 2 | 就是 `INcLinkClient` + `NcLinkClient` 一对，分完是两个各 1 个的空壳 |
+| `Logging/` | 5 | 5 个全是同一作用（静态日志类），分了只是多一层 |
+| `Transport/Mqtt/` | 3 | 分完是 3 个各 1 个的空壳，且其中一个是 DI 扩展 —— 与库根的 `ServiceCollectionExtensions.cs` 同类，本来就不进作用夹 |
 
 ```
 NcLink/
-├── NcLinkException.cs                      异常层次（10 个类型，库级公开契约）
-├── NcLinkClient.cs / INcLinkClient.cs      门面
+├── NcLinkClient.cs / INcLinkClient.cs      门面（2 个，接口+实现，不分层）
 ├── ServiceCollectionExtensions.cs          依赖注入注册
 ├── NcLinkHostedService.cs                  宿主集成
-├── Protocol/                               线上格式（域 10 个文件 → 分层）
+├── Exceptions/                             异常层次（10 个类型，库级公开契约）
+├── Protocol/                               线上格式（10 个 → 按作用分）
 │   ├── Interfaces/  INcLinkCodec / INcLinkTopics / INcLinkTransport
 │   ├── Models/      NcLinkEnvelope / NcLinkMessages / NcLinkOperation / NcLinkProtocolPaths
 │   └── Engine/      JsonNcLinkCodec / NcJsonValue / NcLinkTopics
-├── Logging/                                集中式日志事件（5 个，扁平）
-├── Transport/Mqtt/                         MQTT 传输实现（3 个，扁平）
+├── Logging/                                集中式日志事件（5 个，全同一作用 → 不分）
+├── Transport/Mqtt/                         MQTT 传输实现（3 个 → 不分，见下）
 └── Client/
-    ├── Connection/   机制：连接、请求关联、配置（6 个，扁平）
-    ├── Devices/      官方第 8 章「数据字典」（9 个，扁平）
-    ├── Files/        官方 5.2「获取/下发文件」（4 个，扁平）
-    ├── Set/          官方 5.1「设置」（3 个，扁平）
-    └── Query/        官方 5.1「查询」+ 采样（域 11 个文件 → 分层）
-        ├── Interfaces/  IQuery / IDataItemReader / ISampling / ISampleSubscription
-        ├── Models/      DataItemRequest / DataItemResult / SampleFrame
-        └── Engine/      DataItemReader / DataItemMessages / SampleSubscriptions / SampleMultiplexer
+    ├── Connection/   6 个 → Interfaces(1) Models(1) Options(2) Engine(2)
+    ├── Devices/      9 个 → Interfaces(1) Models(5) Engine(3)
+    ├── Files/        4 个 → Interfaces(1) Models(1) Engine(2)
+    ├── Set/          3 个 → Interfaces(2) Engine(1)
+    └── Query/       11 个 → Interfaces(4) Models(3) Engine(4)
 ```
 
-**为什么门槛是这两条**：本仓库曾把**每个**域都切成四层，得到 24 个文件夹、
-**11 个只装 1 个文件**（`Client/Devices/Interfaces/` 里就 11 行），
-命名空间深到 5 段。反过来，域真的大了（`Query` 11 个、`Protocol` 10 个）时，
-按作用分层确实好找。
+这条由 `check-structure.py` 的 `[2]` 强制（域内不足 3 个 `.cs` 却按作用分层即硬失败）。
+项目根的直接子项不受此限（`NcLink/Exceptions/`、`NcLink.ApiServer/Models/` 这类是常规布局）。
 
-把门槛交给统一判据，**规则会随代码规模自己生效**：库小的时候不许分，
-某个域长大了自然放行——不需要每次靠讨论决定。这条由 `check-structure.py`
-的 `[2]` 强制（域 `< 8` 却分层、或某个作用夹只有 1 个文件，都硬失败）。
-
-- **接口与实现的名字对应**：`RequestCorrelator : IRequestCorrelator`、
-  `DeviceProbe : IDeviceProbe`。分层后接口在 `Interfaces/`，但**名字本身也要能区分**。
-- **类型名说明"它是什么"，不用泛化后缀**。`DeviceModelCache` / `RequestCorrelator` /
-  `DataItemReader` / `DeviceProbe` 是好名字。
-  **本仓库不再有 `-Service` 后缀的实现类**（`NcLinkHostedService` 除外——
-  它是 `IHostedService` 的实现，后缀由框架命名约定决定）。
-  - 反例一：`ProbeService` 只有一个公开方法、只做一次协议往返 → `DeviceProbe`
-  - 反例二：`SamplingService` 做编排没错，**但它本质是一份订阅清单**
-    （持有并管理订阅的增删查），"Service"只说它做什么、没说它是什么 → `SampleSubscriptions`
-  **判据不是"它是否做编排"，而是"名字能否回答这是什么"。**
-- **一个文件夹对应一个功能面**：写入的实现属 `Set/`，不要塞进 `Query/`。
-- **命名空间必须与文件夹一致**（`Client/Query/Engine/` → `NcLink.Client.Query.Engine`）。
-  移动文件后立刻改命名空间，并删掉因此失效的 `using`。
-- **项目根的直接子项不受 `[2]` 约束**（`NcLink.ApiServer/Models/` 这类是 .NET 常规布局）。
-- **测试项目不适用可见性规则**（xUnit 只发现 public 测试类）。
+> **依据是 Microsoft 的官方指导，不是偏好**：
+> [Common web application architectures](https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures)
+> 明说 "separation of concerns is achieved through **the use of folders**"，
+> 模板就是 `Models` / `Views` / `Controllers` / `Data` / `Services`；
+> 它承认的缺点恰恰是 "**as the project's size and complexity grows**,
+> the number of files and folders will continue to grow"。
+> 微软参考项目 [eShopOnWeb](https://github.com/dotnet-architecture/eShopOnWeb) 的
+> `src/ApplicationCore/` 也是 `Constants/ Entities/ Exceptions/ Extensions/
+> Interfaces/ Services/ Specifications/` —— **纯按作用分**。
+> （本文档此前写过"按作用分是 Java 味、.NET 不这么做"——**那句是错的**，已纠正。）
 
 ---
 
@@ -195,9 +199,11 @@ NcLink/
   > **曾经的第二条边，已修复**：`MqttTransport` 未连接时要抛
   > `NcLinkNotConnectedException`，而它当时在 `NcLink.Client.Connection` 下——
   > 传输层因此反向依赖 Client 层，按接口自己实现传输的第三方也得引用 Client 的命名空间。
-  > 把异常层次移到**库根**（命名空间 `NcLink`）后，`MqttTransport` 已不再
-  > `using NcLink.Client.Connection;`，这条边消失。
-  > **`INcLinkTransport` 的文档仍然没写"未连接时该抛什么"**——这一条还欠着。
+  > 把异常层次移到 `NcLink.Exceptions`（不与任何 Client 子命名空间耦合）后，
+  > `MqttTransport` 已不再 `using NcLink.Client.Connection;`，这条边消失。
+  >
+  > `INcLinkTransport.PublishAsync` 的 `<exception>` 文档也补上了——
+  > 第三方实现现在能直接从接口看到"未连接时该抛 `NcLinkNotConnectedException`"。
 - **请求-响应关联的两层匹配顺序不可颠倒**，且降级匹配只在响应**未携带** `@id` 时生效。
   改这里之前先读 `RequestCorrelator` 的类注释——写明了为什么。
 - **采样主题是 `Sample/{deviceId}/{channelId}`（三层，含设备 SN）**，实测官方设备确认。

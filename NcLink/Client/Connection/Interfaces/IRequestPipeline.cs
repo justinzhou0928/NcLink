@@ -1,7 +1,8 @@
 using NcLink.Protocol.Models;
-using NcLink.Client.Connection;
+using NcLink.Client.Connection.Models;
+using NcLink.Client.Connection.Engine;
 
-namespace NcLink.Client.Connection;
+namespace NcLink.Client.Connection.Interfaces;
 
 /// <summary>
 /// 请求管线：负责"发请求并等到正确的响应"这件事的机械部分。

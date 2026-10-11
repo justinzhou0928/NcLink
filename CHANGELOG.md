@@ -269,6 +269,17 @@
   `NcLinkProtocolException`）与连接无关。**顺带修掉一条分层问题**——
   `MqttTransport` 此前必须 `using NcLink.Client.Connection;` 才能抛
   `NcLinkNotConnectedException`，传输层因此反向依赖 Client 层，现已消失。
+- **目录按作用分层，依据是 Microsoft 官方指导**（上一轮把它说成"Java 味"是错的）。
+  域内够 3 个 `.cs` 就按作用分，写成 `check-structure.py` 的 `[2]` 硬规则。
+  新增分层：`Connection` / `Devices` / `Files` / `Set`。三个刻意不分（`Client/` 2 个、
+  `Logging/` 全同一作用、`Transport/Mqtt/` 3 个）。
+- **异常层次移到 `NcLink/Exceptions/`**（库级公开契约，不是连接机制）；
+  顺带修掉 `MqttTransport` 反向依赖 `Client.Connection` 的问题。
+- **接口契约补全**：`INcLinkTransport.PublishAsync` 补"未连接抛什么"的文档；
+  `INcLinkTopics.ProbeVersion` 标注该主题**未经验证**。
+- **清理**：`NcJsonValue` 改 internal；删 4 个 0 引用的成员。
+- **ApiServer 新增 `SwaggerUiEnabled`**（默认 true 对齐官方，生产可关）。
+- **补 `SampleChannels` 分配实测**：288 字节/帧 → 0。
 - **立场转变：从"忠实复刻官方"改为"官方正确处对齐，坏处修好"。**
   触发点是反编译了厂家 jar（`nclink-api-server-0.3.10.jar` 内含
   `nclink-core-2.1.3.jar`，142 个类），拿到了权威实现而非实测推断。
