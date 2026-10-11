@@ -288,6 +288,9 @@
   命名空间 `NcLink.Extensions`），库根只剩 `NcLinkHostedService.cs`。
   调用方需改用 `using NcLink.Extensions;`。对应 eShopOnWeb 的 `ApplicationCore/Extensions/`。
   顺带修正了结构树里一处**本来就画错的地方**：`NcLinkClient.cs` 一直在 `Client/` 下。
+- **对比套件补上 `tags` 比对**：`ApiDocumentTransformer` 的两个分组标签与官方逐字相同，
+  但此前没有检查守着（摘掉它对比仍然通过）。现在官方每个 tag 的 name/description
+  都必须逐字存在，由 `NcLink.Conformance` 强制。
 - **立场转变：从"忠实复刻官方"改为"官方正确处对齐，坏处修好"。**
   触发点是反编译了厂家 jar（`nclink-api-server-0.3.10.jar` 内含
   `nclink-core-2.1.3.jar`，142 个类），拿到了权威实现而非实测推断。

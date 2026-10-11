@@ -217,15 +217,52 @@ internal sealed class DocsAndSurfaceComparison(string officialBase, string oursB
                 : $"    [不一致] definition {name}: 官方=[{string.Join(",", officialFields)}] 我们=[{string.Join(",", ourFields)}]");
         }
 
-        // 4) 顶层元信息
-        // 刻意不比对格式相关的顶层键（swagger/openapi/basePath/securityDefinitions）：
-        // **文档格式不需要与官方一致**。官方是 Springfox 的 Swagger 2.0，我们是原生
-        // OpenAPI 3——要一致的是"怎么调用"，上面按操作与参数比对的就是它。
+        // 4) 分组标签：决定 Swagger UI 里的分组名，属于文档面的对外形状。
+        // 官方那套来自 Springfox 注解，我们逐字复刻，**必须由 ApiDocumentTransformer 提供**
+        // ——少了它生成器只会给出空 tags，而这一点此前没有任何检查守着。
+        // 只比 name 与 description，不比官方 tag 上的其他键（如 externalDocs）。
+        var officialTags = CollectTags(officialDoc.RootElement);
+        var ourTags = CollectTags(oursDoc.RootElement);
+        foreach (var (name, description) in officialTags.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+        {
+            if (ourTags.TryGetValue(name, out var ourDescription) &&
+                string.Equals(description, ourDescription, StringComparison.Ordinal))
+            {
+                output.WriteLine($"    [一致] tag {name}（{description}）");
+            }
+            else
+            {
+                failures++;
+                output.WriteLine(ourTags.ContainsKey(name)
+                    ? $"    [不一致] tag {name}：官方描述=[{description}] 我们=[{ourTags[name]}]"
+                    : $"    [不一致] 缺少 tag {name}（官方描述=[{description}]）");
+            }
+        }
+
+        // 5) 顶层元信息。只比"怎么调用"，因此刻意不比对格式相关的顶层键
+        // （swagger/openapi/basePath/securityDefinitions）与 info.title：
+        // 官方是 Springfox 的 Swagger 2.0，info.title 还是它没改过的默认占位符。
         var officialFormat = officialDoc.RootElement.TryGetProperty("openapi", out _) ? "OpenAPI 3" : "Swagger 2.0";
         var ourFormat = oursDoc.RootElement.TryGetProperty("openapi", out _) ? "OpenAPI 3" : "Swagger 2.0";
         output.WriteLine($"    [不比对] 文档格式：官方={officialFormat} 我们={ourFormat}（只比使用方式）");
 
         return failures;
+    }
+
+    private static Dictionary<string, string?> CollectTags(JsonElement root)
+    {
+        var result = new Dictionary<string, string?>(StringComparer.Ordinal);
+        if (!root.TryGetProperty("tags", out var tags) || tags.ValueKind != JsonValueKind.Array)
+            return result;
+
+        foreach (var tag in tags.EnumerateArray())
+        {
+            var name = tag.TryGetProperty("name", out var n) ? n.GetString() : null;
+            if (string.IsNullOrEmpty(name)) continue;
+            result[name] = tag.TryGetProperty("description", out var d) ? d.GetString() : null;
+        }
+
+        return result;
     }
 
     private static Dictionary<string, JsonElement> CollectOperations(JsonElement root)
