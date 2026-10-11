@@ -2,7 +2,9 @@ using System.Text;
 using System.Text.Json;
 using MQTTnet;
 using MQTTnet.Protocol;
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
+using NcLink.Protocol.Models;
+using NcLink.Protocol.Engine;
 using NcLink.Client.Devices;
 
 namespace NcLink.Simulator;

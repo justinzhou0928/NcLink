@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NcLink;
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
 using NcLink.Transport.Mqtt;
 
 namespace NcLink.Tests.Transport;

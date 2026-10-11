@@ -1,5 +1,6 @@
 using System.Text;
-using NcLink.Protocol;
+using NcLink.Protocol.Models;
+using NcLink.Protocol.Engine;
 
 namespace NcLink.Tests.Client;
 

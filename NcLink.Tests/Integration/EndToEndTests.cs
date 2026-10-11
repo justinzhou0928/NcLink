@@ -1,6 +1,6 @@
 using NcLink.Client;
 using NcLink.Client.Connection;
-using NcLink.Client.Query;
+using NcLink.Client.Query.Models;
 
 namespace NcLink.Tests.Integration;
 

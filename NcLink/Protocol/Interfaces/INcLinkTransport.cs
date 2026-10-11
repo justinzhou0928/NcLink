@@ -1,4 +1,5 @@
-namespace NcLink.Protocol;
+using NcLink.Protocol.Models;
+namespace NcLink.Protocol.Interfaces;
 
 /// <summary>
 /// NC-Link 的传输层抽象：负责连接、订阅、发布与收包。

@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NcLink.Client.Connection;
-using NcLink.Protocol;
 
 namespace NcLink.Client.Devices;
 

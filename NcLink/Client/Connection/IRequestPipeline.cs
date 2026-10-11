@@ -1,4 +1,4 @@
-using NcLink.Protocol;
+using NcLink.Protocol.Models;
 using NcLink.Client.Connection;
 
 namespace NcLink.Client.Connection;

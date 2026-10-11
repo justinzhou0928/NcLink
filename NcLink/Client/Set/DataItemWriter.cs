@@ -1,8 +1,10 @@
 using NcLink.Client.Connection;
 using NcLink.Client.Devices;
-using NcLink.Client.Query;
+using NcLink.Client.Query.Models;
+using NcLink.Client.Query.Engine;
 using NcLink.Client.Set;
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
+using NcLink.Protocol.Models;
 
 namespace NcLink.Client.Set;
 
@@ -10,7 +12,7 @@ namespace NcLink.Client.Set;
 /// 数据项写入：官方手册 5.1「查询/设置相关参数」中的<b>设置</b>部分
 /// （<c>set_value</c>，含 <c>offset</c> 位偏移）。
 ///
-/// 读取在 <c>NcLink.Client.Query.DataItemReader</c>。
+/// 读取在 <c>NcLink.Client.Query.Engine.DataItemReader</c>。
 /// 文件的建目录/删除不在这里——那属于官方 5.2，见 <c>IFileTransfer</c>。
 /// </summary>
 internal sealed class DataItemWriter : ISet, IDataItemWriter

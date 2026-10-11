@@ -1,9 +1,11 @@
-using NcLink.Protocol;
+using NcLink.Protocol.Models;
+using NcLink.Protocol.Engine;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NcLink.Client.Files;
 using NcLink.Client.Connection;
-using NcLink.Client.Query;
+using NcLink.Client.Query.Interfaces;
+using NcLink.Client.Query.Models;
 using NcLink.Client.Set;
 
 namespace NcLink.Client.Files;

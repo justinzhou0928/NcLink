@@ -1,5 +1,7 @@
 using System.Text.Json;
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
+using NcLink.Protocol.Models;
+using NcLink.Protocol.Engine;
 using NcLink.Tests.Fakes;
 using NcLink.Client.Connection;
 using Microsoft.Extensions.Logging.Abstractions;

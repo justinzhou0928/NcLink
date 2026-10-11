@@ -4,7 +4,8 @@ using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using NcLink.Client.Query;
+using NcLink.Client.Query.Interfaces;
+using NcLink.Client.Query.Models;
 using NcLink.ApiServer.Models;
 using NcLink.ApiServer.Logging;
 

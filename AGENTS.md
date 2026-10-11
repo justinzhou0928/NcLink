@@ -55,41 +55,52 @@ python tools/test-check-structure.py  # 必须全部通过（用例如今 16 个
 与文件夹 `Transport/Mqtt/` 一致）。它和 `Client/` 之间隔着
 `INcLinkTransport` 接口——**这才是解耦点，不是程序集边界**。
 
-### 按功能域扁平分，不按"种类"分层（有脚本强制）
+### 目录：按功能域分；域够大时，域内再按作用分（有脚本强制）
 
-判据一句话：**找一个类型时按"它是干什么的"去找，而不是先猜它在
-`Interfaces/` 还是 `Models/` 还是 `Engine/`。**
+**两级判据，与代码规模挂钩：**
+
+1. **顶层按功能域分** —— 找东西时按"它是干什么的"去找。
+2. **域内是否再按作用分**，看规模：
+   - 该域的 `.cs` 文件数 **>= 8**，**且**
+   - 分层后每个作用文件夹 **>= 2** 个文件
+
+   两条都满足才分层；否则保持扁平。**不给单个文件开文件夹。**
 
 ```
 NcLink/
-├── NcLinkClient.cs                  门面 + INcLinkClient
-├── ServiceCollectionExtensions.cs   依赖注入注册
-├── NcLinkHostedService.cs           宿主集成
-├── Protocol/                        线上格式：主题、报文、编解码、协议契约
-├── Logging/                         集中式日志事件
-├── Transport/Mqtt/                  MQTT 传输实现
-└── Client/                          客户端 —— 按官方手册的功能面划分
-    ├── Connection/                  机制：连接、请求关联、配置、异常
-    ├── Devices/                     官方第 8 章「数据字典」
-    ├── Query/                       官方 5.1「查询」+ 采样
-    ├── Set/                         官方 5.1「设置」
-    └── Files/                       官方 5.2「获取/下发文件」
+├── NcLinkClient.cs / INcLinkClient.cs      门面
+├── ServiceCollectionExtensions.cs          依赖注入注册
+├── NcLinkHostedService.cs                  宿主集成
+├── Protocol/                               线上格式（域 10 个文件 → 分层）
+│   ├── Interfaces/  INcLinkCodec / INcLinkTopics / INcLinkTransport
+│   ├── Models/      NcLinkEnvelope / NcLinkMessages / NcLinkOperation / NcLinkProtocolPaths
+│   └── Engine/      JsonNcLinkCodec / NcJsonValue / NcLinkTopics
+├── Logging/                                集中式日志事件（5 个，扁平）
+├── Transport/Mqtt/                         MQTT 传输实现（3 个，扁平）
+└── Client/
+    ├── Connection/   机制：连接、请求关联、配置、异常（7 个，扁平）
+    ├── Devices/      官方第 8 章「数据字典」（9 个，扁平）
+    ├── Files/        官方 5.2「获取/下发文件」（4 个，扁平）
+    ├── Set/          官方 5.1「设置」（3 个，扁平）
+    └── Query/        官方 5.1「查询」+ 采样（域 11 个文件 → 分层）
+        ├── Interfaces/  IQuery / IDataItemReader / ISampling / ISampleSubscription
+        ├── Models/      DataItemRequest / DataItemResult / SampleFrame
+        └── Engine/      DataItemReader / DataItemMessages / SampleSubscriptions / SampleMultiplexer
 ```
 
-**为什么去掉按种类的子文件夹**：本仓库曾把每个能力域切成
-`Interfaces/` + `Models/` + `Parsers/` + `Engine/`，
-结果 57 个文件散在 **24 个文件夹**里、**11 个只装 1 个文件**，
-`Client/Devices/Interfaces/` 只有 11 行，命名空间深到 5 段。
-那是 Java / DDD 的习惯，**.NET 的惯例是按功能域分、接口与实现同处一个命名空间**
-（`Microsoft.Extensions.Logging` 里 `ILogger` 与 `LoggerFactory` 就在一起）。
-几千行的库里按种类分层只增加定位成本。
+**为什么门槛是这两条**：本仓库曾把**每个**域都切成四层，得到 24 个文件夹、
+**11 个只装 1 个文件**（`Client/Devices/Interfaces/` 里就 11 行），
+命名空间深到 5 段。反过来，域真的大了（`Query` 11 个、`Protocol` 10 个）时，
+按作用分层确实好找。
 
-- **接口与实现放同一文件夹**。`IQuery` 与 `DataItemReader` 同处 `Client/Query/`——
-  从"查询"这个词出发就能同时找到契约与实现。
-- **一个接口的配套类型（选项、上下文、结果）也放同一文件夹**。
+把门槛交给统一判据，**规则会随代码规模自己生效**：库小的时候不许分，
+某个域长大了自然放行——不需要每次靠讨论决定。这条由 `check-structure.py`
+的 `[2]` 强制（域 `< 8` 却分层、或某个作用夹只有 1 个文件，都硬失败）。
+
+- **接口与实现的名字对应**：`RequestCorrelator : IRequestCorrelator`、
+  `DeviceProbe : IDeviceProbe`。分层后接口在 `Interfaces/`，但**名字本身也要能区分**。
 - **类型名说明"它是什么"，不用泛化后缀**。`DeviceModelCache` / `RequestCorrelator` /
-  `DataItemReader` / `DeviceProbe` 是好名字——**实现类的名字对应它实现的接口**
-  （`RequestCorrelator : IRequestCorrelator`、`DeviceProbe : IDeviceProbe`）。
+  `DataItemReader` / `DeviceProbe` 是好名字。
   **本仓库不再有 `-Service` 后缀的实现类**（`NcLinkHostedService` 除外——
   它是 `IHostedService` 的实现，后缀由框架命名约定决定）。
   - 反例一：`ProbeService` 只有一个公开方法、只做一次协议往返 → `DeviceProbe`
@@ -97,10 +108,9 @@ NcLink/
     （持有并管理订阅的增删查），"Service"只说它做什么、没说它是什么 → `SampleSubscriptions`
   **判据不是"它是否做编排"，而是"名字能否回答这是什么"。**
 - **一个文件夹对应一个功能面**：写入的实现属 `Set/`，不要塞进 `Query/`。
-- **命名空间必须与文件夹一致**（`Client/Query/` → `NcLink.Client.Query`）。
+- **命名空间必须与文件夹一致**（`Client/Query/Engine/` → `NcLink.Client.Query.Engine`）。
   移动文件后立刻改命名空间，并删掉因此失效的 `using`。
-- **功能域内部不得出现 `Interfaces/`/`Models/`/`Parsers/`/`Engine/`/`Options/`/`Exceptions/`**
-  ——`check-structure.py` 的 `[2]` 会硬失败。项目根下的 `Models/`（.NET 常规布局）放行。
+- **项目根的直接子项不受 `[2]` 约束**（`NcLink.ApiServer/Models/` 这类是 .NET 常规布局）。
 - **测试项目不适用可见性规则**（xUnit 只发现 public 测试类）。
 
 ---

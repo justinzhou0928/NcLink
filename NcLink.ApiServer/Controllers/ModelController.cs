@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using NcLink.ApiServer.Operations;
 using NcLink.ApiServer.Logging;
 using NcLink.ApiServer.Models;
-using NcLink.Client.Query;
+using NcLink.Client.Query.Interfaces;
 
 namespace NcLink.ApiServer.Controllers;
 

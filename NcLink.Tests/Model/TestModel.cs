@@ -1,4 +1,3 @@
-using NcLink.Protocol;
 using NcLink.Client.Devices;
 namespace NcLink.Tests.Model;
 

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using NcLink.Protocol;
+using NcLink.Protocol.Models;
 
 namespace NcLink.Logging;
 

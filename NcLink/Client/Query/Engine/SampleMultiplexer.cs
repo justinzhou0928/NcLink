@@ -1,14 +1,17 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
+using NcLink.Protocol.Models;
+using NcLink.Protocol.Engine;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NcLink.Logging;
 using NcLink.Client.Connection;
 using NcLink.Client.Devices;
-using NcLink.Client.Query;
+using NcLink.Client.Query.Interfaces;
+using NcLink.Client.Query.Models;
 
-namespace NcLink.Client.Query;
+namespace NcLink.Client.Query.Engine;
 
 /// <summary>
 /// 采样分发器：把主题 <c>Sample/{deviceId}/{channelId}</c> 上的采样帧

@@ -8,10 +8,12 @@ using NcLink.Client;
 using NcLink.Client.Connection;
 using NcLink.Client.Devices;
 using NcLink.Client.Files;
-using NcLink.Client.Query;
+using NcLink.Client.Query.Interfaces;
+using NcLink.Client.Query.Engine;
 using NcLink.Client.Set;
 using NcLink;
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
+using NcLink.Protocol.Engine;
 
 namespace NcLink;
 

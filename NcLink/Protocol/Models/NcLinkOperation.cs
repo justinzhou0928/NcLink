@@ -1,4 +1,4 @@
-namespace NcLink.Protocol;
+namespace NcLink.Protocol.Models;
 
 /// <summary>
 /// 数据项操作类型。序列化值与官方 <c>cn.nerc.nclink.core.general.Operation</c> 一致。

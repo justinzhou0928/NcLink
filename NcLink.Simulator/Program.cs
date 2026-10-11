@@ -1,6 +1,5 @@
 using System.Text;
 using NcLink.Client.Devices;
-using NcLink.Protocol;
 using NcLink.Simulator;
 
 // NC-Link 设备侧模拟器：在 MQTT 上模拟若干台数控机床，供离线联调。

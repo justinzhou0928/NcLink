@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using NcLink;
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
+using NcLink.Protocol.Engine;
 using NcLink.Tests.Fakes;
 using NcLink.Client;
 using NcLink.Client.Connection;

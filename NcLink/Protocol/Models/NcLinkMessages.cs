@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
-using NcLink.Protocol;
 
-namespace NcLink.Protocol;
+namespace NcLink.Protocol.Models;
 #region 注册
 
 /// <summary>

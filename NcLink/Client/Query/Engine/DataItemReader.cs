@@ -1,9 +1,11 @@
 using NcLink.Client.Devices;
 using NcLink.Client.Connection;
-using NcLink.Client.Query;
-using NcLink.Protocol;
+using NcLink.Client.Query.Interfaces;
+using NcLink.Client.Query.Models;
+using NcLink.Protocol.Interfaces;
+using NcLink.Protocol.Models;
 
-namespace NcLink.Client.Query;
+namespace NcLink.Client.Query.Engine;
 
 /// <summary>
 /// 数据项读取：官方手册 5.1「查询/设置相关参数」中的<b>查询</b>部分

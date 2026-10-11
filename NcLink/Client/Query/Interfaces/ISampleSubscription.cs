@@ -1,6 +1,6 @@
-using NcLink.Client.Query;
+using NcLink.Client.Query.Models;
 
-namespace NcLink.Client.Query;
+namespace NcLink.Client.Query.Interfaces;
 
 /// <summary>
 /// 采样订阅句柄。

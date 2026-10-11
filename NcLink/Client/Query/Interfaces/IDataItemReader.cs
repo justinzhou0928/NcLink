@@ -1,6 +1,6 @@
-using NcLink.Client.Query;
+using NcLink.Client.Query.Models;
 
-namespace NcLink.Client.Query;
+namespace NcLink.Client.Query.Interfaces;
 
 /// <summary>
 /// 读数据项的最小操作面。

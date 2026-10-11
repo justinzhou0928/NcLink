@@ -69,41 +69,53 @@ python tools/test-check-structure.py       # 审查脚本自身的自测（改�
 
 ### 目录组织约定
 
-**按功能域扁平分，不按"种类"分层。**
+**顶层按功能域分；域够大时，域内再按作用分。**
 
-判据一句话：**找一个类型时，应该按"它是干什么的"去找，而不是先猜它在
-`Interfaces/` 还是 `Models/` 还是 `Engine/`。**
+两级判据，与代码规模挂钩：
+
+1. **顶层按功能域分** —— 找东西时按"它是干什么的"去找。
+2. **域内是否再按作用分（`Interfaces/` `Models/` `Parsers/` `Engine/` `Options/` `Exceptions/`）**：
+   - 该域的 `.cs` 文件数 **>= 8**，**且**
+   - 分层后每个作用文件夹 **>= 2** 个文件
+
+   两条都满足才分层；否则保持扁平。**不给单个文件开文件夹。**
 
 ```
 NcLink/
-├── NcLinkClient.cs          门面 + INcLinkClient
-├── ServiceCollectionExtensions.cs  依赖注入注册
-├── NcLinkHostedService.cs   宿主集成
-├── Protocol/                线上格式：主题、报文、编解码、协议契约
-├── Logging/                 集中式日志事件
-├── Transport/Mqtt/          MQTT 传输实现
-└── Client/                  客户端 —— 按官方手册的功能面划分
-    ├── Connection/          机制：连接、请求关联、配置、异常
-    ├── Devices/             官方第 8 章「数据字典」（设备模型、探测、缓存、解析）
-    ├── Query/               官方 5.1「查询」+ 采样
-    ├── Set/                 官方 5.1「设置」
-    └── Files/               官方 5.2「获取/下发文件」
+├── NcLinkClient.cs / INcLinkClient.cs      门面
+├── ServiceCollectionExtensions.cs          依赖注入注册
+├── NcLinkHostedService.cs                  宿主集成
+├── Protocol/                               线上格式（域 10 个文件 → 分层）
+│   ├── Interfaces/  INcLinkCodec / INcLinkTopics / INcLinkTransport
+│   ├── Models/      NcLinkEnvelope / NcLinkMessages / NcLinkOperation / NcLinkProtocolPaths
+│   └── Engine/      JsonNcLinkCodec / NcJsonValue / NcLinkTopics
+├── Logging/                                集中式日志事件（5 个，扁平）
+├── Transport/Mqtt/                         MQTT 传输实现（3 个，扁平）
+└── Client/
+    ├── Connection/   机制：连接、请求关联、配置、异常（7 个，扁平）
+    ├── Devices/      官方第 8 章「数据字典」（9 个，扁平）
+    ├── Files/        官方 5.2「获取/下发文件」（4 个，扁平）
+    ├── Set/          官方 5.1「设置」（3 个，扁平）
+    └── Query/        官方 5.1「查询」+ 采样（域 11 个文件 → 分层）
+        ├── Interfaces/  IQuery / IDataItemReader / ISampling / ISampleSubscription
+        ├── Models/      DataItemRequest / DataItemResult / SampleFrame
+        └── Engine/      DataItemReader / DataItemMessages / SampleSubscriptions / SampleMultiplexer
 ```
 
-**为什么不再按种类分层**：这个仓库曾经把每个能力域切成
-`Interfaces/` + `Models/` + `Parsers/` + `Engine/` 四个子文件夹，
-结果是 57 个文件散在 **24 个文件夹**里，其中 **11 个只装 1 个文件**——
+**为什么用规模当门槛，而不是"一律分"或"一律不分"**：
+
+本仓库曾把**每个**域都切成 `Interfaces/` + `Models/` + `Parsers/` + `Engine/`，
+结果 57 个文件散在 **24 个文件夹**里，其中 **11 个只装 1 个文件**——
 `Client/Devices/Interfaces/` 里就 11 行，命名空间深到 5 段
 （`NcLink.Client.Connection.Engine.RequestCorrelator`）。
 
-那是 Java / DDD 的组织习惯（按"类型"分层），**.NET 的惯例是按功能域分，
-接口与实现同处一个命名空间**（`Microsoft.Extensions.Logging` 里
-`ILogger` 与 `LoggerFactory` 就在一起）。按种类分层在只有几千行的库里
-只增加定位成本，不带来任何约束力。
+但一刀切全扁平也不对：`Query`(11) 和 `Protocol`(10) 这么大的域，
+按作用分层确实好找。
 
-这条有脚本强制（`check-structure.py` 的 `[2]`）：功能域内部出现
-`Interfaces/` / `Models/` / `Parsers/` / `Engine/` / `Options/` / `Exceptions/`
-会**硬失败**。项目根下的 `Models/`（.NET 常规布局）放行。
+**把门槛写成统一判据后，规则会随代码规模自己生效**：库小的时候不许分，
+某个域长大了自然放行——不需要每次靠讨论决定。
+这条由 `check-structure.py` 的 `[2]` 强制：域 `< 8` 却分层、或某个作用文件夹
+只有 1 个文件，都**硬失败**。项目根的直接子项（如 `NcLink.ApiServer/Models/`）不受此限。
 
 **功能名以官方手册为准**：`Query` / `Set` 对应官方 5.1 的「查询」「设置」，
 `Files` 对应官方 5.2 的「获取/下发文件」。
@@ -116,13 +128,12 @@ NcLink/
 
 **关于可见性**：
 
-- 同一个功能域里 **public 与 internal 类型可以共存**——
+- 同一个文件夹里 **public 与 internal 类型可以共存**——
   对外发布的是 public（`IQuery` / `IFileTransfer`），
   只给本程序集用的是 internal（`IRequestPipeline` / `DataItemOperations`）。
-  可见性由类型自身决定，不再靠文件夹区分（这正是去掉 `Engine/` 的原因）。
 - **测试项目不适用可见性规则**：xUnit 只发现 public 测试类，测试代码本就是 public。
 
-**命名空间必须与文件夹一致**（`Client/Query/` → `NcLink.Client.Query`）——
+**命名空间必须与文件夹一致**（`Client/Query/Engine/` → `NcLink.Client.Query.Engine`）——
 这条由 `check-structure.py` 的 `[1]` 强制。
 
 ### 命名：类型名说明"它是什么"，不用泛化后缀

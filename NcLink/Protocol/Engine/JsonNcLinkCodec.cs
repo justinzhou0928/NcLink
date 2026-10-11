@@ -1,9 +1,10 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
+using NcLink.Protocol.Models;
 
-namespace NcLink.Protocol;
+namespace NcLink.Protocol.Engine;
 
 /// <summary>NC-Link 报文的 JSON 序列化设置。</summary>
 public static class NcLinkJson

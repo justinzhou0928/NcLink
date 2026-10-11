@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NcLink.Client;
 using NcLink.Client.Devices;
 using NcLink;
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
 using NcLink.Tests.Fakes;
 using NcLink.Transport.Mqtt;
 
@@ -128,8 +128,8 @@ public sealed class ContainerLifetimeTests
 
         // 能力接口注册到各自的实现（不是门面）
         Assert.Same(
-            provider.GetRequiredService<NcLink.Client.Query.DataItemReader>(),
-            provider.GetRequiredService<NcLink.Client.Query.IQuery>());
+            provider.GetRequiredService<NcLink.Client.Query.Engine.DataItemReader>(),
+            provider.GetRequiredService<NcLink.Client.Query.Interfaces.IQuery>());
         Assert.Same(
             provider.GetRequiredService<NcLink.Client.Set.DataItemWriter>(),
             provider.GetRequiredService<NcLink.Client.Set.ISet>());

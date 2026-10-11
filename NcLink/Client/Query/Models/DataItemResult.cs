@@ -1,7 +1,8 @@
 using System.Text.Json;
-using NcLink.Protocol;
+using NcLink.Protocol.Models;
+using NcLink.Protocol.Engine;
 
-namespace NcLink.Client.Query;
+namespace NcLink.Client.Query.Models;
 
 /// <summary>
 /// 单个数据项的查询结果。

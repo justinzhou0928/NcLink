@@ -1,4 +1,5 @@
-namespace NcLink.Protocol;
+using NcLink.Protocol.Engine;
+namespace NcLink.Protocol.Models;
 
 /// <summary>
 /// 协议里固定的数据项路径。

@@ -185,38 +185,26 @@ dotnet test --filter 'FullyQualifiedName~DeviceModelTests'
 
 ```
 NcLink/
-├── NcLink/                        核心包（按功能域扁平划分）
+├── NcLink/                        核心包（顶层按功能域分）
 │   ├── NcLinkClient.cs            门面（只做装配）+ INcLinkClient
 │   ├── ServiceCollectionExtensions.cs   依赖注入注册 AddNcLink(...)
 │   ├── NcLinkHostedService.cs     宿主集成
-│   ├── Protocol/                  线上格式
-│   │   ├── NcLinkTopics.cs        主题拼接与响应主题归属判定
-│   │   ├── NcLinkMessages.cs      各接口的报文结构
-│   │   ├── JsonNcLinkCodec.cs     JSON 编解码
-│   │   └── INcLinkCodec.cs / INcLinkTopics.cs / INcLinkTransport.cs /
-│   │       NcLinkEnvelope.cs / NcLinkOperation.cs / NcJsonValue.cs 等协议契约
+│   ├── Protocol/                  线上格式（域 10 个文件 → 域内按作用分层）
+│   │   ├── Interfaces/            INcLinkCodec / INcLinkTopics / INcLinkTransport
+│   │   ├── Models/                NcLinkEnvelope / NcLinkMessages / NcLinkOperation / NcLinkProtocolPaths
+│   │   └── Engine/                JsonNcLinkCodec / NcJsonValue / NcLinkTopics
 │   ├── Logging/                   各组件一个文件，全部 [LoggerMessage] 都在这里
 │   └── Client/                    客户端（按官方手册功能面划分）
-│       ├── Query/                 官方 5.1「查询」+ 采样
-│       │   IQuery / IDataItemReader / ISampling / ISampleSubscription（契约）
-│       │   DataItemReader / DataItemMessages / SampleSubscriptions / SampleMultiplexer（实现）
-│       │   DataItemRequest / DataItemResult / SampleFrame（数据形状）
-│       ├── Set/                   官方 5.1「设置」
-│       │   ISet / IDataItemWriter + DataItemWriter
-│       ├── Files/                 官方 5.2「获取/下发文件」
-│       │   IFileTransfer + FileTransfer / GCodeEncoding
-│       │   FileEntry / FileTransferProgress / FileTransferLimits
-│       ├── Devices/               官方第 8 章「数据字典」（设备模型与探测）
-│       │   IDeviceProbe + DeviceModelCache / DeviceProbe / DeviceModelParser
-│       │   DeviceModel / ModelNode / IndexRange / DeviceModelRaw / EmbeddedSampleModel
-│       └── Connection/            机制：连接、请求关联、配置、异常
-│           IRequestPipeline + RequestPipeline / RequestCorrelator
-│           NcLinkClientOptions / CorrelationOptions / NcLinkException 体系
+│       ├── Connection/            机制：连接、请求关联、配置、异常（扁平）
+│       ├── Devices/               官方第 8 章「数据字典」（扁平）
+│       ├── Files/                 官方 5.2「获取/下发文件」（扁平）
+│       ├── Set/                   官方 5.1「设置」（扁平）
+│       └── Query/                 官方 5.1「查询」+ 采样（域 11 个文件 → 域内按作用分层）
+│           ├── Interfaces/        IQuery / IDataItemReader / ISampling / ISampleSubscription
+│           ├── Models/            DataItemRequest / DataItemResult / SampleFrame
+│           └── Engine/            DataItemReader / DataItemMessages / SampleSubscriptions / SampleMultiplexer
 ├── Transport/                     传输实现
-│   └── Mqtt/
-│       ├── MqttTransport.cs       传输实现 + 自实现重连
-│       ├── MqttTransportOptions.cs  MQTT 专有配置（地址/凭据/重连策略）
-│       └── MqttServiceCollectionExtensions.cs  AddNcLinkMqtt(...)
+│   └── Mqtt/                      MqttTransport / MqttTransportOptions / AddNcLinkMqtt(...)
 ├── NcLink.Simulator/              设备侧参考实现
 ├── NcLink.ApiServer/              官方 apiServer 的 C# 可替换实现
 ├── NcLink.Conformance/            与官方 apiServer 的一致性验证工具
@@ -229,15 +217,16 @@ NcLink/
 
 每个文件的命名空间与它的文件夹一致。
 
-**按功能域扁平划分，不按"种类"分层**。找一个类型时按"它是干什么的"去找，
-而不是先猜它在 `Interfaces/` 还是 `Models/` 还是 `Engine/`。
+**顶层按功能域分；域够大时，域内再按作用分。** 判据有两条，都要满足：
 
-这个仓库曾经把每个能力域切成 `Interfaces/` + `Models/` + `Parsers/` + `Engine/`，
-结果 57 个文件散在 **24 个文件夹**里、**11 个只装 1 个文件**，
-命名空间深到 5 段（`NcLink.Client.Connection.Engine.RequestCorrelator`）。
-那是 Java / DDD 的习惯，**.NET 的惯例是按功能域分、接口与实现同处一个命名空间**
-（`Microsoft.Extensions.Logging` 里 `ILogger` 与 `LoggerFactory` 就在一起）。
-现在库里 **0 个单文件文件夹**；功能域内部再出现按种类分的子文件夹会让检查**硬失败**。
+1. 该域的 `.cs` 文件数 **>= 8**
+2. 分层后每个作用文件夹 **>= 2** 个文件
+
+两条都满足才分层，否则保持扁平。**不给单个文件开文件夹。**
+
+这个仓库曾经把**每个**域都切成四层，结果 57 个文件散在 **24 个文件夹**里、
+**11 个只装 1 个文件**；但一刀切全扁平也不对——`Query`(11) 和 `Protocol`(10)
+这么大的域，按作用分层确实好找。把门槛写成统一判据后，**规则会随代码规模自己生效**。
 
 结构与命名空间由脚本守住：`python tools/check-structure.py`（退出码 0 = 通过）。
 

@@ -1,4 +1,4 @@
-namespace NcLink.Protocol;
+namespace NcLink.Protocol.Interfaces;
 
 /// <summary>
 /// NC-Link 主题契约。实现由 <c>NcLink.Protocol</c> 提供。

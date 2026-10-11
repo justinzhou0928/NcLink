@@ -1,7 +1,7 @@
 using NcLink.Client.Devices;
-using NcLink.Client.Query;
+using NcLink.Client.Query.Models;
 
-namespace NcLink.Client.Query;
+namespace NcLink.Client.Query.Interfaces;
 
 /// <summary>
 /// 查询能力：探测/取设备模型、按数据项查询、采样订阅。

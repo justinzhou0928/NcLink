@@ -81,35 +81,59 @@ def check_namespace(project_name, rows):
     return problems
 
 
-# 按"种类"分的文件夹名。这类拆分在 Java/DDD 里常见，在 .NET 里是多余的：
-# 一个 4000 行的库被切成 24 个文件夹、其中 11 个只装 1 个文件，
-# 找一个类型要先猜它在 Interfaces/ 还是 Models/ 还是 Engine/。
-# .NET 的惯例是**按功能域分**，接口与实现同处一个命名空间。
-KIND_DIRS = ('Interfaces', 'Models', 'Parsers', 'Engine', 'Options', 'Exceptions')
+# 按"作用"分的文件夹名。
+ROLE_DIRS = ('Interfaces', 'Models', 'Parsers', 'Engine', 'Options', 'Exceptions')
+
+# 允许按作用分层的最低门槛。两条都要满足，缺一不可：
+#   1) 该域自己的 .cs 文件数 >= MIN_DOMAIN_FILES —— "文件多的才分"
+#   2) 分层后每个作用文件夹 >= MIN_ROLE_FILES —— 不给单个文件开文件夹
+# 依据：本仓库曾把每个域都切成四层，得到 24 个文件夹、11 个只装 1 个文件
+# （Client/Devices/Interfaces/ 里就 11 行）。把这两条写成硬规则后，
+# 规则会随代码规模自己生效：库小的时候不许分，某个域长大了自然放行。
+MIN_DOMAIN_FILES = 8
+MIN_ROLE_FILES = 2
 
 
-def check_kind_folders(project_root):
+def _cs_count(directory):
+    try:
+        return len([f for f in os.listdir(directory)
+                    if f.endswith('.cs') and os.path.isfile(os.path.join(directory, f))])
+    except OSError:
+        return 0
+
+
+def check_role_folders(project_root):
     """
-    禁止在功能域内部再按"种类"分子文件夹。
+    按作用分层只在"域够大、且分层后每层都不是单文件"时才允许。
 
-    判据：文件夹名落在 KIND_DIRS 里，**且它不是项目根的直接子项**
-    （项目根下的 `Models/` 是 .NET 常规布局，允许）。
-
-    历史上 NcLink/ 被切成 24 个文件夹、11 个只装 1 个文件，
-    `Client/Devices/Interfaces/` 里就 11 行。扁平化后是 11 个文件夹、2 个单文件。
+    项目根的直接子项（如 ApiServer 的 `Models/`）是 .NET 常规布局，放行。
     """
     problems = []
     for dirpath, dirs, _ in os.walk(project_root):
         if os.sep + 'bin' in dirpath or os.sep + 'obj' in dirpath:
             continue
         dirs[:] = [d for d in dirs if d not in ('bin', 'obj')]
-        for d in list(dirs):
-            if d not in KIND_DIRS:
-                continue
-            rel_dir = os.path.relpath(os.path.join(dirpath, d), project_root)
-            if os.sep not in rel_dir:
-                continue
-            problems.append(rel_dir)
+
+        role_dirs = [d for d in dirs if d in ROLE_DIRS]
+        if not role_dirs:
+            continue
+        if os.path.abspath(dirpath) == os.path.abspath(project_root):
+            continue
+
+        rel = os.path.relpath(dirpath, project_root)
+        total = _cs_count(dirpath) + sum(_cs_count(os.path.join(dirpath, d)) for d in role_dirs)
+
+        if total < MIN_DOMAIN_FILES:
+            problems.append(
+                (rel, f'域内只有 {total} 个 .cs，不足以按作用分层（需 >= {MIN_DOMAIN_FILES}）'))
+            continue
+
+        for d in role_dirs:
+            n = _cs_count(os.path.join(dirpath, d))
+            if n < MIN_ROLE_FILES:
+                problems.append(
+                    (rel, f'{d}/ 只有 {n} 个文件（需 >= {MIN_ROLE_FILES}，否则就是给单个文件开文件夹）'))
+
     return problems
 
 
@@ -348,10 +372,10 @@ def main():
         for rel, expected, actual in ns_problems:
             print(f'      {rel}: 期望 {expected} / 实际 {actual}')
 
-        kind_folders = check_kind_folders(project_root)
-        print(f'[2] 按种类分的子文件夹: {len(kind_folders)} 处')
-        for rel_dir in kind_folders:
-            print(f'      {rel_dir}')
+        role_problems = check_role_folders(project_root)
+        print(f'[2] 按作用分层的门槛不达标: {len(role_problems)} 处')
+        for rel, detail in role_problems:
+            print(f'      {rel}: {detail}')
 
         fine = check_too_fine(project_root)
         print(f'[4] 只有一个文件的文件夹: {len(fine)} 处')
@@ -364,7 +388,7 @@ def main():
             print(f'      {rel}:{ln}  {detail}')
 
         print()
-        total += len(ns_problems) + len(kind_folders) + len(style)
+        total += len(ns_problems) + len(role_problems) + len(style)
 
     print('=' * 70)
     print(f'[6] 构建文件里的注释: {len(build_comments)} 处')

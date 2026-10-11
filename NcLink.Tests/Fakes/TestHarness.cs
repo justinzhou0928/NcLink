@@ -5,10 +5,12 @@ using Microsoft.Extensions.Logging;
 using NcLink.Client;
 using NcLink.Client.Connection;
 using NcLink.Client.Devices;
-using NcLink.Client.Query;
+using NcLink.Client.Query.Engine;
 using NcLink.Client.Set;
 using NcLink;
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
+using NcLink.Protocol.Models;
+using NcLink.Protocol.Engine;
 
 namespace NcLink.Tests.Fakes;
 

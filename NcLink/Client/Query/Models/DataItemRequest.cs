@@ -1,7 +1,7 @@
 using NcLink.Client.Devices;
-using NcLink.Protocol;
+using NcLink.Protocol.Models;
 
-namespace NcLink.Client.Query;
+namespace NcLink.Client.Query.Models;
 
 /// <summary>
 /// 一个数据项的操作描述。同时用于查询与设置。

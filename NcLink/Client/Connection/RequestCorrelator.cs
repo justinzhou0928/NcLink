@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
+using NcLink.Protocol.Models;
+using NcLink.Protocol.Engine;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NcLink.Logging;

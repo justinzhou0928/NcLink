@@ -1,10 +1,12 @@
 using NcLink.Client.Devices;
 using System.Text.Json;
 using NcLink.Client.Connection;
-using NcLink.Client.Query;
-using NcLink.Protocol;
+using NcLink.Client.Query.Models;
+using NcLink.Protocol.Interfaces;
+using NcLink.Protocol.Models;
+using NcLink.Protocol.Engine;
 
-namespace NcLink.Client.Query;
+namespace NcLink.Client.Query.Engine;
 
 /// <summary>
 /// 数据项报文的构造与匹配工具，供 <see cref="DataItemReader"/>（查询）与

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace NcLink.Client.Query;
+namespace NcLink.Client.Query.Models;
 
 /// <summary>
 /// 一帧采样数据。对应主题 <c>Sample/{deviceId}/{channelId}</c>。

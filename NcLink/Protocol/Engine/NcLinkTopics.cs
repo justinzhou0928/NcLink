@@ -1,6 +1,7 @@
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
+using NcLink.Client.Query.Engine;
 
-namespace NcLink.Protocol;
+namespace NcLink.Protocol.Engine;
 
 /// <summary>
 /// 主题前缀常量。

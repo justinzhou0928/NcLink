@@ -1,4 +1,4 @@
-namespace NcLink.Client.Query;
+namespace NcLink.Client.Query.Interfaces;
 
 /// <summary>
 /// 采样订阅的生命周期管理：客户端释放时取消全部订阅。

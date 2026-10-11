@@ -1,8 +1,8 @@
 using System.Text.Json;
 using NcLink.Client.Devices;
-using NcLink.Client.Query;
+using NcLink.Client.Query.Models;
 using NcLink.ApiServer.Models;
-using NcLink.Protocol;
+using NcLink.Protocol.Models;
 
 namespace NcLink.ApiServer.Operations;
 

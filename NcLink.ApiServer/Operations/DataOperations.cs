@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using NcLink.ApiServer.Logging;
 using NcLink.ApiServer.Models;
 using NcLink.Client.Connection;
-using NcLink.Client.Query;
+using NcLink.Client.Query.Interfaces;
 using NcLink.Client.Set;
 
 namespace NcLink.ApiServer.Operations;
@@ -85,9 +85,9 @@ internal static class DataOperations
 
         if (request?.Items is { Count: > 0 })
         {
-            var operation = request.Operation ?? NcLink.Protocol.NcLinkOperationNames.GetValue;
+            var operation = request.Operation ?? NcLink.Protocol.Models.NcLinkOperationNames.GetValue;
             var allValid =
-                NcLink.Protocol.NcLinkOperationNames.TryParse(operation, out _)
+                NcLink.Protocol.Models.NcLinkOperationNames.TryParse(operation, out _)
                 && request.Items.All(i => DataRequestMapper.ToDataItemRequest(i, operation, out _, out _) is not null);
 
             if (allValid)
@@ -110,8 +110,8 @@ internal static class DataOperations
         // 实测：operation <b>缺失</b>才默认 get_value；
         // 显式给空串或全空格是"非法 operation"（code 2），不能当成缺失。
         var operation = request.Operation;
-        var effectiveOperation = operation ?? NcLink.Protocol.NcLinkOperationNames.GetValue;
-        var items = new List<NcLink.Client.Query.DataItemRequest>(request.Items!.Count);
+        var effectiveOperation = operation ?? NcLink.Protocol.Models.NcLinkOperationNames.GetValue;
+        var items = new List<NcLink.Client.Query.Models.DataItemRequest>(request.Items!.Count);
 
         foreach (var httpItem in request.Items)
         {
@@ -128,9 +128,9 @@ internal static class DataOperations
 
         // 实测：set_value / add / delete 三者都返回"每个 item 一个布尔"
         var isWrite =
-            string.Equals(effectiveOperation, NcLink.Protocol.NcLinkOperationNames.SetValue, StringComparison.Ordinal)
-            || string.Equals(effectiveOperation, NcLink.Protocol.NcLinkOperationNames.Add, StringComparison.Ordinal)
-            || string.Equals(effectiveOperation, NcLink.Protocol.NcLinkOperationNames.Delete, StringComparison.Ordinal);
+            string.Equals(effectiveOperation, NcLink.Protocol.Models.NcLinkOperationNames.SetValue, StringComparison.Ordinal)
+            || string.Equals(effectiveOperation, NcLink.Protocol.Models.NcLinkOperationNames.Add, StringComparison.Ordinal)
+            || string.Equals(effectiveOperation, NcLink.Protocol.Models.NcLinkOperationNames.Delete, StringComparison.Ordinal);
 
         // 先确保设备模型可用。官方对未知 SN 会等一个固定的 3 秒探测窗口后返回 19，
         // 说明它也是先"确保设备已知"再发数据请求——判定为设备不存在而不是请求失败。

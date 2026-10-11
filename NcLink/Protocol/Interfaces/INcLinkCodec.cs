@@ -1,4 +1,5 @@
-namespace NcLink.Protocol;
+using NcLink.Protocol.Models;
+namespace NcLink.Protocol.Interfaces;
 
 /// <summary>
 /// 报文编解码器。把报文对象与线上的字节互相转换。

@@ -1,4 +1,5 @@
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
+using NcLink.Protocol.Models;
 
 namespace NcLink.Tests.Fakes;
 

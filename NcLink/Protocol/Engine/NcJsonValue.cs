@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace NcLink.Protocol;
+namespace NcLink.Protocol.Engine;
 
 /// <summary>
 /// <see cref="JsonElement"/> 取值辅助。

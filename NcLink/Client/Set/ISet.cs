@@ -1,4 +1,4 @@
-using NcLink.Client.Query;
+using NcLink.Client.Query.Models;
 
 namespace NcLink.Client.Set;
 

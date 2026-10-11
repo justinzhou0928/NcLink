@@ -1,9 +1,9 @@
-using NcLink.Protocol;
+using NcLink.Protocol.Interfaces;
 using NcLink.Client.Connection;
 using NcLink.Client.Devices;
-using NcLink.Client.Query;
+using NcLink.Client.Query.Interfaces;
 
-namespace NcLink.Client.Query;
+namespace NcLink.Client.Query.Engine;
 
 /// <summary>
 /// 采样订阅清单：持有并管理 <c>Sample/{channelId}</c> 的订阅与注销。

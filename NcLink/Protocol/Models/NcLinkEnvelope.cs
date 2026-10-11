@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace NcLink.Protocol;
+namespace NcLink.Protocol.Models;
 
 /// <summary>
 /// 所有 NC-Link 报文的基类。协议用 GUID 关联请求与响应，字段名为 <c>@id</c>。
