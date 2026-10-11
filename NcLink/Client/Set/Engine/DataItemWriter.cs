@@ -57,7 +57,7 @@ internal sealed class DataItemWriter : ISet, IDataItemWriter
 
         var message = await DataItemMessages.ExchangeAsync<SetResponseMessage>(
             _pipeline, _codec, _topics.SetRequest(deviceId), deviceId, resolved, request,
-            "\"results\"", "设置", timeout, cancellationToken).ConfigureAwait(false);
+            DataItemMessages.SetStructureMarker, "设置", timeout, cancellationToken).ConfigureAwait(false);
 
         return (message.Results ?? [])
             .Select(r => new SetItemResult(r.Id ?? string.Empty, r.IsOk, r.Reason))

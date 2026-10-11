@@ -86,7 +86,7 @@ public sealed class RequestCorrelatorTests
         var response = await correlator.SendAsync(
             BuildQuery(ItemRegX),
             ContextFor(DeviceA, ItemRegX),
-            strictMatcher: ctx => ctx.ResponseText.Contains("\"" + ItemRegX + "\"", StringComparison.Ordinal));
+            strictMatcher: ctx => ctx.ResponsePayload.Span.IndexOf(System.Text.Encoding.UTF8.GetBytes($"\"{ItemRegX}\"")) >= 0);
 
         Assert.Equal(Topics.QueryResponse(DeviceA), response.Topic);
     }
@@ -113,7 +113,7 @@ public sealed class RequestCorrelatorTests
         var response = await correlator.SendAsync(
             BuildQuery(ItemRegX),
             ContextFor(DeviceA, ItemRegX),
-            fallbackMatcher: ctx => ctx.ResponseText.Contains("\"" + ItemRegX + "\"", StringComparison.Ordinal));
+            fallbackMatcher: ctx => ctx.ResponsePayload.Span.IndexOf(System.Text.Encoding.UTF8.GetBytes($"\"{ItemRegX}\"")) >= 0);
 
         // 必须是 DEV_A 的那一条
         Assert.Equal(Topics.QueryResponse(DeviceA), response.Topic);
@@ -148,7 +148,7 @@ public sealed class RequestCorrelatorTests
             correlator.SendAsync(
                 BuildQuery(ItemRegX),
                 ContextFor(DeviceA, ItemRegX),
-                fallbackMatcher: ctx => ctx.ResponseText.Contains("\"" + ItemRegX + "\"", StringComparison.Ordinal)));
+                fallbackMatcher: ctx => ctx.ResponsePayload.Span.IndexOf(System.Text.Encoding.UTF8.GetBytes($"\"{ItemRegX}\"")) >= 0));
     }
 
     [Fact]

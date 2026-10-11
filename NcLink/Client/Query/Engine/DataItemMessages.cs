@@ -17,6 +17,12 @@ namespace NcLink.Client.Query.Engine;
 /// </summary>
 internal static class DataItemMessages
 {
+    /// <summary>查询响应的结构标记：响应里必须出现 <c>values</c>。</summary>
+    public static readonly ReadOnlyMemory<byte> QueryStructureMarker = "\"values\""u8.ToArray();
+
+    /// <summary>设置响应的结构标记：响应里必须出现 <c>results</c>。</summary>
+    public static readonly ReadOnlyMemory<byte> SetStructureMarker = "\"results\""u8.ToArray();
+
     /// <summary>解析数据项路径 → 模型 id。</summary>
     public static IReadOnlyList<ResolvedItem> Resolve(DeviceModel model, IEnumerable<DataItemRequest> items)
     {
@@ -43,7 +49,7 @@ internal static class DataItemMessages
         string deviceId,
         IReadOnlyList<ResolvedItem> resolved,
         NcLinkEnvelope request,
-        string structureMarker,
+        ReadOnlyMemory<byte> structureMarker,
         string label,
         TimeSpan? timeout,
         CancellationToken cancellationToken)
@@ -53,7 +59,7 @@ internal static class DataItemMessages
             topic,
             new RequestContext(topic, deviceId, resolved.Select(r => r.ItemId).ToArray()),
             request,
-            matcher: ctx => IsExpectedResponse(ctx, structureMarker),
+            matcher: ctx => IsExpectedResponse(ctx, structureMarker.Span),
             timeout: timeout,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
@@ -89,22 +95,22 @@ internal static class DataItemMessages
     /// <c>offset</c> 递进），任何时刻只有一个分块请求在途。
     /// <b>若将来引入并行分块，必须先在这里补齐 params 比对</b>，否则会写错偏移。
     /// </summary>
-    public static bool IsExpectedResponse(RequestContext context, string structureMarker)
+    public static bool IsExpectedResponse(RequestContext context, ReadOnlySpan<byte> structureMarker)
     {
-        if (!context.ResponseText.Contains(structureMarker, StringComparison.Ordinal)) return false;
+        var payload = context.ResponsePayload.Span;
 
-        return context.CorrelationMatched
-               || ContainsQuotedIds(context.ResponseText, context.ItemIds);
+        if (payload.IndexOf(structureMarker) < 0) return false;
+
+        return context.CorrelationMatched || ContainsQuotedIds(payload, context.ItemIdPatterns);
     }
 
     /// <summary>报文体是否带引号地出现了请求的某个数据项 id。</summary>
-    private static bool ContainsQuotedIds(string text, IReadOnlyList<string> itemIds)
+    private static bool ContainsQuotedIds(
+        ReadOnlySpan<byte> payload, IReadOnlyList<byte[]> itemIdPatterns)
     {
-        foreach (var id in itemIds)
-        {
-            if (id.Length == 0) continue;
-            if (text.Contains("\"" + id + "\"", StringComparison.Ordinal)) return true;
-        }
+        foreach (var pattern in itemIdPatterns)
+            if (payload.IndexOf(pattern) >= 0) return true;
+
         return false;
     }
 

@@ -44,7 +44,7 @@ internal sealed partial class DeviceProbe : IDeviceProbe
             topic,
             context,
             new ProbeQueryRequestMessage(),
-            matcher: static ctx => ContainsModelPayload(ctx.ResponseText),
+            matcher: static ctx => ContainsModelPayload(ctx.ResponsePayload),
             timeout: timeout,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
@@ -74,13 +74,14 @@ internal sealed partial class DeviceProbe : IDeviceProbe
     /// 因此这里只能靠"结构像不像"来认领。
     /// 先做关键字预筛，避免对每条无关响应都跑一次反序列化。
     /// </summary>
-    private static bool ContainsModelPayload(string text)
+    private static bool ContainsModelPayload(ReadOnlyMemory<byte> payload)
     {
-        if (!text.Contains("\"probe\"", StringComparison.Ordinal)) return false;
+        // 先按字节找标记（零分配），命中了才反序列化；反序列化也直接吃 UTF-8 字节
+        if (payload.Span.IndexOf("\"probe\""u8) < 0) return false;
 
         try
         {
-            var probe = NcLinkJson.Deserialize<ProbeQueryResponseMessage>(text)?.Probe;
+            var probe = NcLinkJson.Deserialize<ProbeQueryResponseMessage>(payload.Span)?.Probe;
             return probe is { ValueKind: JsonValueKind.Object or JsonValueKind.Array };
         }
         catch (System.Text.Json.JsonException)

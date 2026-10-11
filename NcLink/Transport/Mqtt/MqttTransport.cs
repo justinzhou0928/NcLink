@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using MQTTnet;
 using MQTTnet.Protocol;
@@ -23,8 +24,7 @@ public sealed class MqttTransport : INcLinkTransport
     private readonly MqttTransportOptions _options;
     private readonly Func<IMqttClient> _clientFactory;
     private readonly SemaphoreSlim _connectLock = new(1, 1);
-    private readonly HashSet<string> _subscriptions = new(StringComparer.Ordinal);
-    private readonly object _subscriptionLock = new();
+    private readonly ConcurrentDictionary<string, byte> _subscriptions = new(StringComparer.Ordinal);
     private readonly CancellationTokenSource _lifetime = new();
 
     private IMqttClient? _client;
@@ -92,9 +92,8 @@ public sealed class MqttTransport : INcLinkTransport
 
             SetState(NcLinkConnectionState.Connected);
 
-            // 重放订阅，保证重连后行为一致
-            string[] topics;
-            lock (_subscriptionLock) topics = _subscriptions.ToArray();
+            // 重放订阅，保证重连后行为一致。Keys 本身就是快照，无需额外加锁
+            string[] topics = [.. _subscriptions.Keys];
 
             foreach (var topic in topics)
                 await SubscribeCoreAsync(topic, cancellationToken).ConfigureAwait(false);
@@ -127,7 +126,7 @@ public sealed class MqttTransport : INcLinkTransport
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(topic);
 
-        lock (_subscriptionLock) _subscriptions.Add(topic);
+        _subscriptions.TryAdd(topic, 0);
 
         if (IsConnected)
             await SubscribeCoreAsync(topic, cancellationToken).ConfigureAwait(false);
@@ -138,7 +137,7 @@ public sealed class MqttTransport : INcLinkTransport
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(topic);
 
-        lock (_subscriptionLock) _subscriptions.Remove(topic);
+        _subscriptions.TryRemove(topic, out _);
 
         if (_client?.IsConnected != true) return;
 

@@ -93,7 +93,7 @@ internal sealed partial class RequestCorrelator
     /// </summary>
     /// <param name="request">请求报文（其 <c>CorrelationId</c> 会被填写）。</param>
     /// <param name="context">
-    /// 匹配上下文：<see cref="RequestContext.ResponseTopic"/> 等字段由关联器回填，
+    /// 匹配上下文：关联器派生一份并回填响应文本与 <c>@id</c> 命中标记，
     /// 匹配器通过 <paramref name="strictMatcher"/> / <paramref name="fallbackMatcher"/> 读取。
     /// </param>
     /// <param name="strictMatcher">
@@ -140,19 +140,18 @@ internal sealed partial class RequestCorrelator
 
             CorrelationLog.LogRequestSent(_logger, context.DeviceId, context.Topic, correlationId, effectiveTimeout);
 
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(effectiveTimeout);
-
-            using (cts.Token.Register(() => completion.TrySetCanceled(cts.Token)))
+            // Task.WaitAsync 同时给出超时与取消：超时抛 TimeoutException、令牌取消抛
+            // OperationCanceledException。此前手工用 CreateLinkedTokenSource + CancelAfter
+            // + Register 拼同一件事——每次请求多分配一个 CTS 与一个取消注册，
+            // 还要靠 when 过滤器区分"到底是谁取消的"。BCL 直接有。
+            try
             {
-                try
-                {
-                    return await completion.Task.ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-                {
-                    throw CreateTimeoutException(context, effectiveTimeout);
-                }
+                return await completion.Task.WaitAsync(effectiveTimeout, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                throw CreateTimeoutException(context, effectiveTimeout);
             }
         }
         finally
@@ -187,12 +186,14 @@ internal sealed partial class RequestCorrelator
             return Task.CompletedTask;
         }
 
-        var text = message.AsUtf8Text();
+        // 响应按字节参与匹配，不解码成字符串——绝大多数消息不匹配任何在途请求，
+        // 解码整条报文等于白分配一份 UTF-16 副本。理由见 RequestContext 的类注释。
+        var payload = message.Payload.AsMemory();
 
         // 第一遍：严格匹配
         foreach (var entry in _pending)
         {
-            if (entry.Value.TryMatchStrict(message.Topic, text, _topics))
+            if (entry.Value.TryMatchStrict(message.Topic, payload, _topics))
             {
                 entry.Value.Completion.TrySetResult(message);
                 _pending.TryRemove(entry.Key, out _);
@@ -204,7 +205,7 @@ internal sealed partial class RequestCorrelator
         // 第二遍：降级匹配（仅当无任何严格匹配命中）
         foreach (var entry in _pending)
         {
-            if (entry.Value.TryMatchFallback(message.Topic, text, _topics))
+            if (entry.Value.TryMatchFallback(message.Topic, payload, _topics))
             {
                 entry.Value.Completion.TrySetResult(message);
                 _pending.TryRemove(entry.Key, out _);
@@ -266,11 +267,11 @@ internal sealed partial class RequestCorrelator
 
         public Func<RequestContext, bool>? FallbackMatcher { get; }
 
-        public bool TryMatchStrict(string topic, string text, INcLinkTopics topics)
+        public bool TryMatchStrict(string topic, ReadOnlyMemory<byte> payload, INcLinkTopics topics)
         {
             // 关联 id 必须作为 JSON 值出现，而不是随便一处子串。
             // 用裸子串匹配会误命中报文里的其它数字/字符串（例如 "id":"01035430" 里含 "1"）。
-            if (!ContainsCorrelationId(text)) return false;
+            if (!ContainsCorrelationId(payload.Span)) return false;
 
             // 即使 @id 命中，也必须确认这条响应属于本次请求的主题：
             // 否则同一 Broker 上另一个客户端实例的响应（其 @id 恰好相同）会被误领。
@@ -278,16 +279,29 @@ internal sealed partial class RequestCorrelator
 
             // 可选：调用方给出更严格的语义校验。
             // 未提供时以 @id 为准（关联 id 全局唯一，命中即唯一对应）。
-            var context = _context.For(text);
+            var context = _context.For(payload);
             context.CorrelationMatched = true;
             return _strictMatcher?.Invoke(context) ?? true;
         }
 
         /// <summary>报文体里的 <c>@id</c> 是否等于本次请求的关联 id。</summary>
-        private bool ContainsCorrelationId(string text)
-            => text.Contains("\"@id\":\"" + CorrelationId + "\"", StringComparison.Ordinal);
+        private bool ContainsCorrelationId(ReadOnlySpan<byte> payload)
+        {
+            var marker = "\"@id\":\""u8;
+            var index = payload.IndexOf(marker);
+            if (index < 0) return false;
 
-        public bool TryMatchFallback(string topic, string text, INcLinkTopics topics)
+            var rest = payload[(index + marker.Length)..];
+            if (rest.Length < CorrelationId.Length + 1) return false;
+
+            // 关联 id 由 ASCII 组成，逐字节比对即可
+            for (var i = 0; i < CorrelationId.Length; i++)
+                if (rest[i] != (byte)CorrelationId[i]) return false;
+
+            return rest[CorrelationId.Length] == (byte)'"';
+        }
+
+        public bool TryMatchFallback(string topic, ReadOnlyMemory<byte> payload, INcLinkTopics topics)
         {
             if (FallbackMatcher is null) return false;
 
@@ -297,28 +311,27 @@ internal sealed partial class RequestCorrelator
             // 若响应里明确携带了 @id 且不等于本次请求，则它属于别人 —— 绝不可降级认领。
             // 否则设备回显 @id 时的迟到响应（可能是别的操作甚至别的设备）会被误当成本次结果，
             // 例如文件下载拿到非十六进制内容。
-            if (ContainsAnyCorrelationId(text, out var echoed)) return false;
+            if (ContainsAnyCorrelationId(payload.Span)) return false;
 
-            var context = _context.For(text);
+            var context = _context.For(payload);
             context.CorrelationMatched = false;
             return FallbackMatcher(context);
         }
 
-        /// <summary>报文体是否携带了 <c>@id</c>（无论是否等于本次请求）。</summary>
-        private static bool ContainsAnyCorrelationId(string text, out string? echoed)
+        /// <summary>
+        /// 报文体是否携带了 <c>@id</c>（无论是否等于本次请求）。
+        ///
+        /// 只回答"有没有"，不解析它的值——调用方从不使用那个值（此前有个
+        /// <c>out echoed</c> 参数始终被丢弃）。
+        /// </summary>
+        private static bool ContainsAnyCorrelationId(ReadOnlySpan<byte> payload)
         {
-            echoed = null;
-
-            const string marker = "\"@id\":\"";
-            var index = text.IndexOf(marker, StringComparison.Ordinal);
+            var marker = "\"@id\":\""u8;
+            var index = payload.IndexOf(marker);
             if (index < 0) return false;
 
-            var start = index + marker.Length;
-            var end = text.IndexOf('"', start);
-            if (end < 0) return false;
-
-            echoed = text[start..end];
-            return true;
+            // 值必须有收尾引号，否则只是报文里的字样而算不上一个 @id 字段
+            return payload[(index + marker.Length)..].IndexOf((byte)'"') >= 0;
         }
     }
 

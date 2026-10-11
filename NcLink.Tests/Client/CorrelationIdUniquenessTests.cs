@@ -102,7 +102,7 @@ public sealed class CorrelationIdUniquenessTests
         var correlatorA = new RequestCorrelator(transportA, JsonNcLinkCodec.Default, topics, options, TimeSpan.FromMilliseconds(500), TimeProvider.System, NullLogger<RequestCorrelator>.Instance);
         var correlatorB = new RequestCorrelator(transportB, JsonNcLinkCodec.Default, topics, options, TimeSpan.FromMilliseconds(500), TimeProvider.System, NullLogger<RequestCorrelator>.Instance);
 
-        static bool HasItem(RequestContext ctx) => ctx.ResponseText.Contains($"\"{ItemId}\"", StringComparison.Ordinal);
+        static bool HasItem(RequestContext ctx) => ctx.ResponsePayload.Span.IndexOf(System.Text.Encoding.UTF8.GetBytes($"\"{ItemId}\"")) >= 0;
 
         var requestA = new QueryRequestMessage { Ids = [Item(ItemId)] };
         var requestB = new QueryRequestMessage { Ids = [Item(ItemId)] };
@@ -131,7 +131,7 @@ public sealed class CorrelationIdUniquenessTests
 
         var correlator = new RequestCorrelator(transport, JsonNcLinkCodec.Default, topics, options, TimeSpan.FromMilliseconds(300), TimeProvider.System, NullLogger<RequestCorrelator>.Instance);
 
-        static bool HasItem(RequestContext ctx) => ctx.ResponseText.Contains($"\"{ItemId}\"", StringComparison.Ordinal);
+        static bool HasItem(RequestContext ctx) => ctx.ResponsePayload.Span.IndexOf(System.Text.Encoding.UTF8.GetBytes($"\"{ItemId}\"")) >= 0;
 
         var request = new QueryRequestMessage { Ids = [Item(ItemId)] };
 

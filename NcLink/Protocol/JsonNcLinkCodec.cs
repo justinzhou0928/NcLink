@@ -27,6 +27,23 @@ public static class NcLinkJson
     public static T? Deserialize<T>(string json) => JsonSerializer.Deserialize<T>(json, Options);
 
     public static object? Deserialize(string json, Type type) => JsonSerializer.Deserialize(json, type, Options);
+
+    /// <summary>
+    /// 直接序列化成 UTF-8 字节。
+    ///
+    /// 报文收发是热路径。<c>Serialize</c> 之后再 <c>Encoding.UTF8.GetBytes</c> 会先把整条报文
+    /// 变成 UTF-16 字符串再转回来，白分配一份；<c>System.Text.Json</c> 本就支持直接写字节。
+    /// </summary>
+    public static byte[] SerializeToUtf8Bytes(object value, Type type)
+        => JsonSerializer.SerializeToUtf8Bytes(value, type, Options);
+
+    /// <summary>直接从 UTF-8 字节反序列化（同上，省掉一次字符串中转）。</summary>
+    public static T? Deserialize<T>(ReadOnlySpan<byte> utf8Json)
+        => JsonSerializer.Deserialize<T>(utf8Json, Options);
+
+    /// <summary>直接从 UTF-8 字节反序列化到指定类型。</summary>
+    public static object? Deserialize(ReadOnlySpan<byte> utf8Json, Type type)
+        => JsonSerializer.Deserialize(utf8Json, type, Options);
 }
 
 /// <summary>
@@ -49,7 +66,7 @@ public sealed class JsonNcLinkCodec : INcLinkCodec
 
         // 必须按运行时类型序列化：若按 NcLinkEnvelope 基类序列化会丢掉派生报文的字段。
         // System.Text.Json 会缓存类型的元数据，重复调用同一类型不会有明显反射开销。
-        return Encoding.UTF8.GetBytes(NcLinkJson.Serialize(message, message.GetType()));
+        return NcLinkJson.SerializeToUtf8Bytes(message, message.GetType());
     }
 
     public TMessage? Decode<TMessage>(byte[] payload) where TMessage : NcLinkEnvelope
@@ -57,7 +74,7 @@ public sealed class JsonNcLinkCodec : INcLinkCodec
         if (payload.Length == 0) return null;
         try
         {
-            return NcLinkJson.Deserialize<TMessage>(Encoding.UTF8.GetString(payload));
+            return NcLinkJson.Deserialize<TMessage>(payload);
         }
         catch (JsonException)
         {
@@ -71,7 +88,7 @@ public sealed class JsonNcLinkCodec : INcLinkCodec
         if (payload.Length == 0) return null;
         try
         {
-            return NcLinkJson.Deserialize(Encoding.UTF8.GetString(payload), messageType) as NcLinkEnvelope;
+            return NcLinkJson.Deserialize(payload, messageType) as NcLinkEnvelope;
         }
         catch (JsonException)
         {

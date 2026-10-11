@@ -81,7 +81,7 @@ internal sealed class DataItemReader : IQuery, IDataItemReader
 
         var message = await DataItemMessages.ExchangeAsync<QueryResponseMessage>(
             _pipeline, _codec, _topics.QueryRequest(deviceId), deviceId, resolved, request,
-            "\"values\"", "查询", timeout, cancellationToken).ConfigureAwait(false);
+            DataItemMessages.QueryStructureMarker, "查询", timeout, cancellationToken).ConfigureAwait(false);
 
         var results = new List<DataItemResult>();
         foreach (var value in message.Values ?? [])
