@@ -48,11 +48,15 @@ public static class DeviceModelParser
 }
 
 /// <summary>
-/// 内置示例模型的解析入口：把"读取内置 JSON"与"解析"串起来，供离线开发与测试使用。
+/// 内置示例模型的解析入口：把"读取内置 JSON"与"解析"串起来。
+///
+/// <b>internal</b>：使用者只有同仓库的 <c>NcLink.Tests</c>（测试夹具）与
+/// <c>NcLink.Simulator</c>（不传 <c>--model</c> 时的默认设备模型）——
+/// 演示资产不该出现在库的公开 API 面上。
 /// </summary>
-public static class SampleDeviceModel
+internal static class SampleDeviceModel
 {
     /// <summary>解析内置示例模型。</summary>
-    public static DeviceModel Parse(string deviceId = "SAMPLE_DEVICE")
+    internal static DeviceModel Parse(string deviceId = "SAMPLE_DEVICE")
         => DeviceModelParser.Parse(EmbeddedSampleModel.Json, deviceId);
 }

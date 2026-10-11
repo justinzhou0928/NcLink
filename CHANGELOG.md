@@ -280,6 +280,10 @@
 - **清理**：`NcJsonValue` 改 internal；删 4 个 0 引用的成员。
 - **ApiServer 新增 `SwaggerUiEnabled`**（默认 true 对齐官方，生产可关）。
 - **补 `SampleChannels` 分配实测**：288 字节/帧 → 0。
+- **内置示例模型收窄为 internal**。`EmbeddedSampleModel` 与 `SampleDeviceModel`
+  曾是库的公开 API，但使用者只有同仓库的 `NcLink.Tests`（测试夹具）与
+  `NcLink.Simulator`（不传 `--model` 时的默认设备模型）——演示资产不该出现在
+  公开 API 面上。`InternalsVisibleTo` 相应加上 `NcLink.Simulator`。
 - **立场转变：从"忠实复刻官方"改为"官方正确处对齐，坏处修好"。**
   触发点是反编译了厂家 jar（`nclink-api-server-0.3.10.jar` 内含
   `nclink-core-2.1.3.jar`，142 个类），拿到了权威实现而非实测推断。

@@ -5,12 +5,14 @@ namespace NcLink.Client.Devices.Models;
 /// <summary>
 /// 内置示例设备模型的读取入口（只提供 JSON 文本）。
 ///
-/// 仅供<b>离线开发与测试</b>使用。真实项目里模型应从设备的探测接口取回
-/// （<c>INcLinkOperations.ProbeAsync</c>），不要依赖这个内置文件。
+/// 使用者只有同仓库的 <c>NcLink.Tests</c>（测试夹具）与 <c>NcLink.Simulator</c>
+/// （不传 <c>--model</c> 时的默认设备模型），因此是 <b>internal</b>——
+/// 演示资产不该出现在库的公开 API 面上。
 ///
-/// 解析请用 <c>NcLink.Protocol.SampleDeviceModel.Parse(...)</c>。
+/// 真实项目的模型应从设备的探测接口取回（<c>IQuery.ProbeAsync</c>）。
+/// 解析入口见 <c>NcLink.Client.Devices.Engine.SampleDeviceModel.Parse</c>。
 /// </summary>
-public static class EmbeddedSampleModel
+internal static class EmbeddedSampleModel
 {
     /// <summary>
     /// 资源文件名。资源全名由「根命名空间 + 文件路径」组成，
@@ -21,7 +23,7 @@ public static class EmbeddedSampleModel
     private static readonly Lazy<string> LazyJson = new(Load, LazyThreadSafetyMode.ExecutionAndPublication);
 
     /// <summary>示例模型 JSON 文本。</summary>
-    public static string Json => LazyJson.Value;
+    internal static string Json => LazyJson.Value;
 
     private static string Load()
     {
