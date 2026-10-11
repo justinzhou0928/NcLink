@@ -286,5 +286,73 @@ public sealed class DataItemTests
 
         Assert.Equal("ABC", harness.LastSet!.Values![0].Params!.Value!.Value.GetString());
     }
+
+    #region 设置参数只能表达单个 index / 单个 key
+
+    [Fact]
+    public async Task Set_RangeIndex_ShouldBeRejectedInsteadOfSilentlyTruncated()
+    {
+        // 回归：BuildSetParams 曾写 `Indexes is { Count: 1 } ? Indexes[0].Start : null`。
+        // 区间 [0,9] 的 Count 也是 1，于是只发 Start —— 用户以为写了 10 个寄存器，
+        // 实际只写了 1 个，而且返回成功。协议里设置只能带单个 index，必须显式拒绝。
+        await using var harness = new TestHarness();
+
+        var ex = await Assert.ThrowsAsync<NcLinkInvalidRequestException>(
+            () => harness.Writer.SetItemAsync(
+                TestHarness.Device, DataItemRequest.At(TestHarness.RegX, 0, 9)));
+
+        Assert.Contains("单个单点索引", ex.Message, StringComparison.Ordinal);
+        Assert.Null(harness.LastSet);
+    }
+
+    [Fact]
+    public async Task Set_MultipleIndexes_ShouldBeRejected()
+    {
+        await using var harness = new TestHarness();
+
+        await Assert.ThrowsAsync<NcLinkInvalidRequestException>(
+            () => harness.Writer.SetItemAsync(
+                TestHarness.Device, DataItemRequest.At(TestHarness.RegX, 0, 1, 2)));
+
+        Assert.Null(harness.LastSet);
+    }
+
+    [Fact]
+    public async Task Set_IndexAndKeyTogether_ShouldBeRejected()
+    {
+        // 厂家 SetParams.isValid()：index 与 key 不能同时出现
+        await using var harness = new TestHarness();
+
+        await Assert.ThrowsAsync<NcLinkInvalidRequestException>(
+            () => harness.Writer.SetItemAsync(TestHarness.Device, new DataItemRequest
+            {
+                Path = TestHarness.RegX,
+                Indexes = [IndexRange.Single(0)],
+                Keys = ["a", "b"],
+                Value = 1
+            }));
+
+        Assert.Null(harness.LastSet);
+    }
+
+    [Fact]
+    public async Task Set_ShouldCarryLengthInParams()
+    {
+        // 厂家 SetParams 有 length 字段；文件下发每块都要带它
+        await using var harness = new TestHarness();
+        harness.RespondSetOk(RegXId);
+
+        await harness.Writer.SetItemAsync(TestHarness.Device, new DataItemRequest
+        {
+            Path = TestHarness.RegX,
+            Value = "AA",
+            Offset = 0,
+            Length = 1
+        });
+
+        Assert.Equal(1, harness.LastSet!.Values![0].Params!.Length);
+    }
+
+    #endregion
 }
     #endregion

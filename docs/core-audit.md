@@ -211,6 +211,47 @@ Client 层的 `NcLinkNotConnectedException`。按 §2.5 自己实现 `INcLinkTra
 
 ---
 
+## 六、复核结果（逐条回到代码验证，含被推翻的结论）
+
+审计由五个独立 agent 并行给出，**下面是我逐条复核后的结论**。
+把这一节写出来是因为"agent 说有问题"不等于"真有问题"。
+
+### 被推翻的结论（不要照做）
+
+| 原结论 | 复核结果 |
+|---|---|
+| 降级匹配不比对 params 会导致**文件分块错位写入、文件静默损坏**（列为 high） | **当前不可达**。上传与下载都是顺序发块（`while` 里 `await`，offset 递进），任何时刻只有一个分块请求在途。已把局限与"引入并行分块前必须先补"写进代码注释，**不加代码**——正确修法需在匹配器里解析响应，约 80 行新增，与"更精简"相悖 |
+| `transportFactory` 参数与 `AddNcLinkCorrelation` 零使用，可删 21 行 | **错**。`transportFactory` 被 `ContainerLifetimeTests` 等 6 处、`AddNcLinkCorrelation` 被 `ServiceCollectionExtensionsTests` 使用。未删 |
+| `NcLinkTopics` 里 13 个常量是 `NcLinkTopicPrefixes` 的重复声明 | **误读**。那 13 个字面量在 `NcLinkTopicPrefixes` 里（规范位置），`NcLinkTopics` 里的是**类内部简写别名**，被本类方法用了约 30 次。删掉只省 13 行却要改 30 处，**不划算，保留** |
+| `ISet.SetAsync` 静默丢弃区间与多索引 | **确认，已修**（这是真 bug） |
+| `DeviceModelCache` 取消令牌串台 | **确认，已修**，并补了回归测试 |
+| README 异常表 3 个类型名不存在 | **确认，已修** |
+| README 采样主题写成两层、归因段描述已推翻的机制 | **确认，已修** |
+| `IRequestCorrelator` 零消费者 | **确认，已删**（40 行），方法文档搬到实现 |
+| `RequestContext` 三个只写成员 | **确认，已删**（编译器确认无人读取） |
+| `Protocol/NcLinkProtocolPaths.cs` 反向 `using NcLink.Client.Devices.Models` | **确认，已删**。注意：这个 using 是死的——全文只有一个 `const`，提到 `DeviceModel` 的地方在**注释**里 |
+| 异常构造函数伪造内部异常 | **确认，已修**。3 处伪造去掉；`NcLinkProtocolException` 的 `innerException` 参数**有人用**（`SampleMultiplexer`），保留；另两个参数无人用，删掉 |
+| `RequestPipeline(TimeProvider? = null)` 可选依赖 | **确认，已改为必填** |
+| `SampleFrame` 直接用墙钟 | **确认，已修**。改为由调用方传入 `receivedAt`（模型不该依赖时钟服务），顺带把 `DateTimeOffset.Now` 改成 UTC |
+| `SampleChannels` 是每次访问都重建的 LINQ 属性（原列为"线性扫描"） | **确认且比原结论更严重**：采样转发**每帧**都查它，等于每秒重建上千个字典。已改为 `Build` 时建表一次 |
+
+### 审计之外的额外发现
+
+- `NcLinkException.cs` 的 `#endregion` 落在 `NcLinkProtocolException` **类体内部**（错位 2 行）。
+  C# 不在乎，读者会在乎。已归位。
+- 文件下载 `offset`/`length` **必须成对**：厂家只在两者都给时才按段返回，
+  只给一个时两个都忽略。我们此前各自生效——这是审计没列出的对外契约差异，已修。
+
+### 未做（有意）
+
+- 降级匹配补 params 比对（见上，不可达 + 代价不成比例）
+- 删 `NcLinkTopics` 的 13 个别名（见上，不划算）
+- 删 `AddNcLinkCorrelation` / `transportFactory`（见上，有人用）
+- 给 `EnforceCodeStyleInBuild` 配 `IDE0005`：**实测在本 SDK 上不生效**
+  （插一个多余的 `using System.Xml;` 探针，构建不报），留着会给人"已拦住"的错觉，故未启用
+
+---
+
 ## 待决事项
 
 1. **先修哪一批？** 建议顺序：静默错误（第一节 1-2、第二节 1-3）→ 文档不符（3-4）→ 精简（第三节）

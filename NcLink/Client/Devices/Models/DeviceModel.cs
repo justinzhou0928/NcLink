@@ -21,6 +21,8 @@ public sealed class DeviceModel
     private readonly Dictionary<string, ModelNode> _byId = new(StringComparer.Ordinal);
     private readonly List<ModelNode> _nodes = [];
     private readonly List<ModelNode> _devices = [];
+    private IReadOnlyDictionary<string, SampleChannelInfo> _sampleChannels =
+        new Dictionary<string, SampleChannelInfo>(StringComparer.Ordinal);
 
     private DeviceModel(string deviceId) => DeviceId = deviceId;
 
@@ -41,10 +43,14 @@ public sealed class DeviceModel
     /// <summary>顶层设备节点（通常是唯一的 <c>MACHINE</c>）。</summary>
     public IReadOnlyList<ModelNode> Devices => _devices;
 
-    /// <summary>采样通道，键为通道 id。</summary>
-    public IReadOnlyDictionary<string, SampleChannelInfo> SampleChannels
-        => _nodes.Where(n => n.SampleChannel is not null)
-                 .ToDictionary(n => n.Id, n => n.SampleChannel!, StringComparer.Ordinal);
+    /// <summary>
+    /// 采样通道，键为通道 id。
+    ///
+    /// 在 <see cref="Build"/> 时建好一次。它<b>不能</b>写成每次访问都
+    /// <c>LINQ</c> 重建的属性——采样转发<b>每帧</b>都要查这张表
+    /// （见 <c>SampleMultiplexer</c>），每秒上千帧时就是每秒重建上千个字典。
+    /// </summary>
+    public IReadOnlyDictionary<string, SampleChannelInfo> SampleChannels => _sampleChannels;
 
     #region 构建
 
@@ -59,6 +65,10 @@ public sealed class DeviceModel
             var node = Visit(deviceSource, parentPath: string.Empty);
             if (node is not null) model._devices.Add(node);
         }
+
+        model._sampleChannels = model._nodes
+            .Where(n => n.SampleChannel is not null)
+            .ToDictionary(n => n.Id, n => n.SampleChannel!, StringComparer.Ordinal);
 
         return model;
 

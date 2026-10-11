@@ -235,6 +235,34 @@ internal sealed class BehaviorComparison(string officialBase, string oursBase, s
         }
 
         output.WriteLine();
+        output.WriteLine("  文件取段（offset/length）——官方要求两者成对，越界返回 code 1：");
+
+        // 上传的是 "hello"（5 字节），据此构造边界。这几条曾经全是错的：
+        // 我们此前让 offset/length 各自生效，且越界时静默截断返回 200。
+        var rangeCases = new (string Label, string Query)[]
+        {
+            ("不给 offset/length", string.Empty),
+            ("成对且在范围内", "&offset=0&length=2"),
+            ("length 超过文件长度", "&offset=0&length=99"),
+            ("length+offset 超过文件长度", "&offset=3&length=5"),
+            ("只给 length（官方两个都忽略）", "&length=2"),
+            ("只给 offset（官方两个都忽略）", "&offset=2")
+        };
+
+        foreach (var (label, query) in rangeCases)
+        {
+            var path = $"/v1/{sn}/file/?path=/MACHINE/CONTROLLER/FILE&key={probeFile}{query}";
+            var off = await SendRawAsync(officialBase, path);
+            var own = await SendRawAsync(oursBase, path);
+            var same = off.Code == own.Code && off.Body.SequenceEqual(own.Body);
+            if (!same) failures++;
+
+            output.WriteLine($"    [{(same ? "一致" : "不一致")}] {label}");
+            output.WriteLine($"        官方: HTTP {off.Code} {off.Body.Length} 字节 {Truncate(Encoding.UTF8.GetString(off.Body))}");
+            output.WriteLine($"        我们: HTTP {own.Code} {own.Body.Length} 字节 {Truncate(Encoding.UTF8.GetString(own.Body))}");
+        }
+
+        output.WriteLine();
         output.WriteLine("  已知的刻意差异：");
 
         // 官方 GET data 一律 code 3（它只读请求体，GET 带不了体）；我们读查询参数因此可用。

@@ -29,14 +29,17 @@ public sealed class SampleFrame
         string channelId,
         long? beginTime,
         IReadOnlyList<SampleItem> items,
-        IReadOnlyList<string>? itemIds = null)
+        IReadOnlyList<string>? itemIds = null,
+        DateTimeOffset? receivedAt = null)
     {
         DeviceId = deviceId;
         ChannelId = channelId;
         BeginTime = beginTime;
         Items = items;
         ItemIds = itemIds ?? [];
-        ReceivedAt = DateTimeOffset.Now;
+        // 由调用方给出（分发器持有 TimeProvider）。这里不读墙钟：
+        // 一是模型不该依赖时钟服务，二是本地时间无法在单测里断言。
+        ReceivedAt = receivedAt ?? DateTimeOffset.UtcNow;
     }
 
     /// <summary>数据所属设备 SN（取自主题）。</summary>

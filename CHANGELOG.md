@@ -220,6 +220,23 @@
     破坏已实测对齐的 Spring 错误体）。
   - 新增 `MvcQuirksOperationTransformer` 收口 MVC 与 Minimal API 的文档差异
     （catch-all 多出的 `rest` 必填参数、被展开坏的 multipart 请求体）。
+- **核心库审计后的修复**（五维度并行审计 34 条发现，详见 `docs/core-audit.md`）。
+  - **静默错误**：`ISet.SetAsync` 此前对区间与多索引**只发第一个**——
+    区间 `[0,9]` 的 `Count` 也是 1，于是只写 1 个寄存器却返回成功。
+    现在显式拒绝（协议里设置只能带单个 `index`/`key`），并补厂家
+    `SetParams.isValid()` 的 index/key 互斥校验。
+    `DeviceModelCache` 的并发去重把**第一个调用方的取消令牌**闭包进共享探测任务，
+    A 取消会连坐 B/C/D；改为共享任务不接收调用方令牌、等待侧各自 `WaitAsync`。
+  - **补齐厂家规则**：`SetParamsMessage` 补 `length`；文件下载补越界校验
+    （`code 1` + 官方原文案）与 `offset`/`length` **成对**语义
+    （官方只给一个时两个都忽略，我们此前各自生效）。
+  - **精简**：删零消费者的 `IRequestCorrelator`（40 行）、
+    `RequestContext` 三个只写成员、协议层反向 `using Client`、
+    Query/Set 重复的请求骨架。
+  - **性能**：`DeviceModel.SampleChannels` 此前是每次访问都 `LINQ` 重建的属性，
+    而采样转发**每帧**都查它 → 改为 `Build` 时建表。
+  - **标准性**：去掉 3 处伪造的 `innerException`；`RequestPipeline` 的
+    `TimeProvider?` 可选依赖改为必填；`SampleFrame` 不再读墙钟（由调用方传入）。
 - **立场转变：从"忠实复刻官方"改为"官方正确处对齐，坏处修好"。**
   触发点是反编译了厂家 jar（`nclink-api-server-0.3.10.jar` 内含
   `nclink-core-2.1.3.jar`，142 个类），拿到了权威实现而非实测推断。

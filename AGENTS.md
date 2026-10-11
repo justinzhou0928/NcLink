@@ -65,8 +65,9 @@ NcLink/
 
 **`Extensions/` 与 `Hosting/` 不是一回事**：前者是"怎么注册"（静态扩展方法），
 后者是"被注册的实现"（`NcLinkHostedService` 有生命周期）。
-`Hosting/` 单独成域还标出了依赖边界——它是**唯一**需要
-`Microsoft.Extensions.Hosting.Abstractions` 的地方。
+`Hosting/` 单独成域还标出了依赖边界——它是**主要**需要
+`Microsoft.Extensions.Hosting.Abstractions` 的地方（`Extensions/ServiceCollectionExtensions.cs`
+的 `AddHostedService<NcLinkHostedService>()` 也用到它，因此"唯一"这个说法在源码层面不成立）。
 
 **`Transport/` 装具体传输实现**（命名空间 `NcLink.Transport.Mqtt`，
 与文件夹 `Transport/Mqtt/` 一致）。它和 `Client/` 之间隔着
@@ -164,6 +165,10 @@ NcLink/
     是 `INcLinkTransport` + `FakeTransport`，**不是程序集边界**；
     `NcLink.Simulator` 用核心包却走自己的设备侧收发，也证明了这一点。
   - `MqttTransport` 的 `internal` 成员测试可见，靠核心包的 `InternalsVisibleTo NcLink.Tests`。
+  > **审计核实的例外**：类型层面成立（`Client/` 下无一处引用 MQTTnet 或 `MqttTransport`），
+  > 但还有一条未声明的第二边——`MqttTransport` 未连接时抛的是 Client 层的
+  > `NcLinkNotConnectedException`。按接口自己实现传输的第三方因此必须引用 Client 的
+  > 异常命名空间，而接口文档没写"未连接时该抛什么"。要么补文档，要么把该异常下沉到 `Protocol/`。
 - **请求-响应关联的两层匹配顺序不可颠倒**，且降级匹配只在响应**未携带** `@id` 时生效。
   改这里之前先读 `RequestCorrelator` 的类注释——写明了为什么。
 - **采样主题是 `Sample/{deviceId}/{channelId}`（三层，含设备 SN）**，实测官方设备确认。

@@ -27,13 +27,14 @@ internal sealed partial class RequestPipeline : IRequestPipeline, IDisposable
         NcLinkClientOptions options,
         CorrelationOptions correlationOptions,
         ILoggerFactory loggerFactory,
-        TimeProvider? timeProvider = null)
+        TimeProvider timeProvider)
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _topics = topics ?? throw new ArgumentNullException(nameof(topics));
         _options = options ?? throw new ArgumentNullException(nameof(options));
 
         ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(timeProvider);
         _logger = loggerFactory.CreateLogger<RequestPipeline>();
 
         _correlator = new RequestCorrelator(
@@ -42,7 +43,7 @@ internal sealed partial class RequestPipeline : IRequestPipeline, IDisposable
             _topics,
             correlationOptions ?? throw new ArgumentNullException(nameof(correlationOptions)),
             defaultTimeout: options.RequestTimeout,
-            timeProvider: timeProvider ?? TimeProvider.System,
+            timeProvider: timeProvider,
             logger: loggerFactory.CreateLogger<RequestCorrelator>());
     }
 

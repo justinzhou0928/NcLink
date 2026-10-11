@@ -27,15 +27,18 @@ internal sealed partial class SampleMultiplexer
 {
     private readonly INcLinkCodec _codec;
     private readonly DeviceModelCache _models;
+    private readonly TimeProvider _time;
     private readonly ILogger<SampleMultiplexer> _logger;
 
     /// <summary>设备 + 通道 → 订阅（键为 "设备|通道"）。</summary>
     private readonly ConcurrentDictionary<string, SampleSubscription> _subscriptions = new(StringComparer.Ordinal);
 
-    public SampleMultiplexer(INcLinkCodec codec, DeviceModelCache models, ILogger<SampleMultiplexer> logger)
+    public SampleMultiplexer(
+        INcLinkCodec codec, DeviceModelCache models, TimeProvider time, ILogger<SampleMultiplexer> logger)
     {
         _codec = codec ?? throw new ArgumentNullException(nameof(codec));
         _models = models ?? throw new ArgumentNullException(nameof(models));
+        _time = time ?? throw new ArgumentNullException(nameof(time));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -90,7 +93,8 @@ internal sealed partial class SampleMultiplexer
         // 通道配置里的数据项 id，顺序与 items 对应（用于按 id 取值）
         var itemIds = _models.GetChannelItemIds(deviceId, channelId);
 
-        target.Publish(new SampleFrame(deviceId, channelId, sample.BeginTime, items, itemIds));
+        target.Publish(new SampleFrame(
+                deviceId, channelId, sample.BeginTime, items, itemIds, _time.GetUtcNow()));
         return true;
     }
 
