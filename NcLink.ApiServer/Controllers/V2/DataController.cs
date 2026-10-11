@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using NcLink.ApiServer.Engine;
+using NcLink.ApiServer.Operations;
 using NcLink.ApiServer.Models;
-using NcLink.Client.Query.Interfaces;
-using NcLink.Client.Set.Interfaces;
+using NcLink.Client.Query;
+using NcLink.Client.Set;
 
 namespace NcLink.ApiServer.Controllers.V2;
 

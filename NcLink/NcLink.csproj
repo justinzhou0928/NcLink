@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Client\Devices\Models\sample-model.json" />
+    <EmbeddedResource Include="Client\Devices\sample-model.json" />
   </ItemGroup>
 
   <ItemGroup>

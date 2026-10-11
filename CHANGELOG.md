@@ -237,6 +237,21 @@
     而采样转发**每帧**都查它 → 改为 `Build` 时建表。
   - **标准性**：去掉 3 处伪造的 `innerException`；`RequestPipeline` 的
     `TimeProvider?` 可选依赖改为必填；`SampleFrame` 不再读墙钟（由调用方传入）。
+- **目录扁平化：按功能域分，去掉按"种类"分的子文件夹。**
+  此前每个能力域都被切成 `Interfaces/` + `Models/` + `Parsers/` + `Engine/`，
+  结果是 **57 个文件散在 24 个文件夹里、11 个只装 1 个文件**
+  （`Client/Devices/Interfaces/` 里就 11 行），命名空间深到 5 段。
+  这是 Java / DDD 的组织习惯；**.NET 的惯例是按功能域分、接口与实现同处一个命名空间**
+  （`Microsoft.Extensions.Logging` 里 `ILogger` 与 `LoggerFactory` 就在一起）。
+  - 现在：**11 个文件夹、0 个单文件文件夹、最深 2 层**。
+    `Client/Query/` 里 `IQuery` 与 `DataItemReader` 并列，从"查询"一词出发就能找到契约与实现。
+  - `NcLink.ApiServer` 同步扁平：`Engine/` → `Operations/`、`General/Logging/` → `Logging/`、
+    `Interfaces/` → `Operations/`。
+  - `Extensions/ServiceCollectionExtensions.cs` 与 `Hosting/NcLinkHostedService.cs`
+    移到库根（命名空间 `NcLink.Extensions`/`NcLink.Hosting` → `NcLink`）。
+  - 检查脚本同步：原来的 `Interfaces/`/`Models/`/`Parsers/` 内容纯度检查已空转，
+    换成 **`[2]` 禁止功能域内部出现按种类分的子文件夹**（项目根下的 `Models/` 放行），
+    并补了 4 个自测用例（16 → 20）。
 - **立场转变：从"忠实复刻官方"改为"官方正确处对齐，坏处修好"。**
   触发点是反编译了厂家 jar（`nclink-api-server-0.3.10.jar` 内含
   `nclink-core-2.1.3.jar`，142 个类），拿到了权威实现而非实测推断。

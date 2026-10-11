@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using NcLink.Protocol.Contracts;
+using NcLink.Protocol;
 
 namespace NcLink.Protocol;
 #region 注册

@@ -139,8 +139,57 @@ def run_case(name, filename, content, expect):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def run_kind_case(name, rel_path, expect_flagged):
+    """[2] 按种类分的子文件夹：判据是"文件夹名 + 是否在功能域内部"。
+
+    单独一套用例，因为判的是**目录结构**而不是文件内容，
+    与上面按文件内容判 [5] 的用例走不到同一个断言上。
+    """
+    tmp = tempfile.mkdtemp(prefix='ncchk-')
+    try:
+        proj = os.path.join(tmp, 'NcLink')
+        full = os.path.join(proj, rel_path)
+        os.makedirs(os.path.dirname(full))
+        io.open(full, 'w', encoding='utf-8').write('namespace NcLink;\npublic sealed class T { }\n')
+
+        src = io.open(os.path.join(REPO, 'tools', 'check-structure.py'), encoding='utf-8').read()
+        src = src.replace(
+            "REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))",
+            f"REPO_ROOT = {tmp!r}")
+        src, n = re.subn(r"PROJECTS = \[[^\]]*\]", "PROJECTS = ['NcLink']", src)
+        assert n == 1, f'PROJECTS 替换次数异常: {n}'
+        tool = os.path.join(tmp, 'check.py')
+        io.open(tool, 'w', encoding='utf-8').write(src)
+
+        r = subprocess.run([PY, tool], capture_output=True, text=True,
+                           encoding='utf-8', errors='replace', cwd=tmp)
+        out = (r.stdout or '') + (r.stderr or '')
+        section = out.split('[2]')[-1].split('[4]')[0] if '[2]' in out else ''
+
+        flagged = rel_path.rsplit(os.sep, 1)[0] in section
+        ok = flagged == expect_flagged
+        detail = ('已抓到' if flagged else '未抓到')
+        if not ok:
+            detail = f'期望{"抓到" if expect_flagged else "放行"}，实际{detail}: {section.strip()[:60]}'
+        print(f'  [{"OK  " if ok else "FAIL"}] {name}: {detail}')
+        return ok
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+KIND_CASES = [
+    ('功能域内按种类分层应被抓到', os.path.join('Client', 'Query', 'Interfaces', 'IQ.cs'), True),
+    ('功能域内 Engine 应被抓到', os.path.join('Client', 'Files', 'Engine', 'F.cs'), True),
+    ('项目根下的 Models 应放行', os.path.join('Models', 'A.cs'), False),
+    ('功能域文件夹应放行', os.path.join('Client', 'Query', 'IQ.cs'), False),
+]
+
 print(f'=== check-structure.py [5] 编码约定检查自测（{len(CASES)} 个用例）===\n')
 results = [run_case(*c) for c in CASES]
+
+print(f'\n=== [2] 按种类分的子文件夹自测（{len(KIND_CASES)} 个用例）===\n')
+results += [run_kind_case(*c) for c in KIND_CASES]
+
 good = sum(results)
 print(f'\n通过 {good}/{len(results)}')
 sys.exit(0 if good == len(results) else 1)

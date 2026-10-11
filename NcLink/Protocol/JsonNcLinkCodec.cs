@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using NcLink.Protocol.Contracts;
+using NcLink.Protocol;
 
 namespace NcLink.Protocol;
 

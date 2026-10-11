@@ -3,11 +3,10 @@ using NcLink.Simulator;
 using NcLink.Transport.Mqtt;
 using Microsoft.Extensions.Logging;
 using NcLink.Client;
-using NcLink.Client.Connection.Engine;
-using NcLink.Client.Devices.Models;
-using NcLink.Client.Connection.Options;
+using NcLink.Client.Connection;
+using NcLink.Client.Devices;
 using Microsoft.Extensions.DependencyInjection;
-using NcLink.Extensions;
+using NcLink;
 
 namespace NcLink.Tests.Integration;
 

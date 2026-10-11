@@ -1,5 +1,4 @@
 using NcLink.Protocol;
-using NcLink.Protocol.Contracts;
 
 namespace NcLink.Tests.Protocol;
 

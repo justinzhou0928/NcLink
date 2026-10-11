@@ -1,12 +1,8 @@
 using NcLink.Protocol;
-using NcLink.Protocol.Contracts;
-using NcLink.Client.Files.Engine;
-using NcLink.Client.Files.Models;
-using NcLink.Client.Connection.Exceptions;
-using NcLink.Client.Query.Engine;
-using NcLink.Client.Query.Models;
-using NcLink.Client.Query.Interfaces;
-using NcLink.Client.Set.Interfaces;
+using NcLink.Client.Files;
+using NcLink.Client.Connection;
+using NcLink.Client.Query;
+using NcLink.Client.Set;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace NcLink.Tests.Files;

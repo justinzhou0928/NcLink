@@ -1,9 +1,8 @@
 using System.Text.Json;
 using NcLink.Tests.Fakes;
-using NcLink.Protocol.Contracts;
-using NcLink.Client.Connection.Exceptions;
-using NcLink.Client.Query.Engine;
-using NcLink.Client.Query.Models;
+using NcLink.Protocol;
+using NcLink.Client.Connection;
+using NcLink.Client.Query;
 
 namespace NcLink.Tests.Client;
 

@@ -51,40 +51,42 @@ python tools/test-check-structure.py  # 必须全部通过（用例如今 16 个
 
 ## 2. 目录与命名空间（有脚本强制）
 
-### 顶层按功能域
-
-```
-NcLink/
-├── Protocol/     线上格式：主题、报文、编解码、协议契约
-├── General/      跨域共用：Logging/
-├── Extensions/   依赖注入注册助手（静态扩展方法）
-├── Hosting/      宿主集成（IHostedService 实现）
-├── Transport/    传输实现（Mqtt/，基于 MQTTnet）
-└── Client/       客户端：Query / Set / Files / Devices / Connection
-```
-
-**`Extensions/` 与 `Hosting/` 不是一回事**：前者是"怎么注册"（静态扩展方法），
-后者是"被注册的实现"（`NcLinkHostedService` 有生命周期）。
-`Hosting/` 单独成域还标出了依赖边界——它是**主要**需要
-`Microsoft.Extensions.Hosting.Abstractions` 的地方（`Extensions/ServiceCollectionExtensions.cs`
-的 `AddHostedService<NcLinkHostedService>()` 也用到它，因此"唯一"这个说法在源码层面不成立）。
-
 **`Transport/` 装具体传输实现**（命名空间 `NcLink.Transport.Mqtt`，
 与文件夹 `Transport/Mqtt/` 一致）。它和 `Client/` 之间隔着
 `INcLinkTransport` 接口——**这才是解耦点，不是程序集边界**。
 
-### 每个能力域内部严格三层
+### 按功能域扁平分，不按"种类"分层（有脚本强制）
 
-| 子文件夹 | 只放 | 违规示例 |
-|---|---|---|
-| `Interfaces/` | `interface` | 里面出现 `class`/`record`/`enum`/`struct` |
-| `Models/` | 数据形状（DTO、值类型、选项、上下文） | 里面出现 `interface` 或 `*Parser` |
-| `Parsers/` | 解析行为（一种表示转另一种） | 里面出现 `interface`/`record`/`enum`/`struct` |
-| `Engine/` | `internal` 实现 | 里面出现 `public` 类型 |
+判据一句话：**找一个类型时按"它是干什么的"去找，而不是先猜它在
+`Interfaces/` 还是 `Models/` 还是 `Engine/`。**
 
-- **接口一律放 `Interfaces/`，哪怕只有一个文件、哪怕它是 internal 窄接口。**
-  不要图省事写在实现文件里，也不要放 `Engine/`。
-- 一个接口需要的配套类型（选项、上下文、结果）**属 `Models/`**，不要跟着接口写在一个文件里。
+```
+NcLink/
+├── NcLinkClient.cs                  门面 + INcLinkClient
+├── ServiceCollectionExtensions.cs   依赖注入注册
+├── NcLinkHostedService.cs           宿主集成
+├── Protocol/                        线上格式：主题、报文、编解码、协议契约
+├── Logging/                         集中式日志事件
+├── Transport/Mqtt/                  MQTT 传输实现
+└── Client/                          客户端 —— 按官方手册的功能面划分
+    ├── Connection/                  机制：连接、请求关联、配置、异常
+    ├── Devices/                     官方第 8 章「数据字典」
+    ├── Query/                       官方 5.1「查询」+ 采样
+    ├── Set/                         官方 5.1「设置」
+    └── Files/                       官方 5.2「获取/下发文件」
+```
+
+**为什么去掉按种类的子文件夹**：本仓库曾把每个能力域切成
+`Interfaces/` + `Models/` + `Parsers/` + `Engine/`，
+结果 57 个文件散在 **24 个文件夹**里、**11 个只装 1 个文件**，
+`Client/Devices/Interfaces/` 只有 11 行，命名空间深到 5 段。
+那是 Java / DDD 的习惯，**.NET 的惯例是按功能域分、接口与实现同处一个命名空间**
+（`Microsoft.Extensions.Logging` 里 `ILogger` 与 `LoggerFactory` 就在一起）。
+几千行的库里按种类分层只增加定位成本。
+
+- **接口与实现放同一文件夹**。`IQuery` 与 `DataItemReader` 同处 `Client/Query/`——
+  从"查询"这个词出发就能同时找到契约与实现。
+- **一个接口的配套类型（选项、上下文、结果）也放同一文件夹**。
 - **类型名说明"它是什么"，不用泛化后缀**。`DeviceModelCache` / `RequestCorrelator` /
   `DataItemReader` / `DeviceProbe` 是好名字——**实现类的名字对应它实现的接口**
   （`RequestCorrelator : IRequestCorrelator`、`DeviceProbe : IDeviceProbe`）。
@@ -94,10 +96,11 @@ NcLink/
   - 反例二：`SamplingService` 做编排没错，**但它本质是一份订阅清单**
     （持有并管理订阅的增删查），"Service"只说它做什么、没说它是什么 → `SampleSubscriptions`
   **判据不是"它是否做编排"，而是"名字能否回答这是什么"。**
-  做编排不构成用泛化后缀的理由。
-- **一个文件夹对应一个功能面**：写入的实现属 `Set/Engine/`，不要塞进 `Query/Engine/`。
-- **命名空间必须与文件夹一致**（`Client/Query/Engine/` → `NcLink.Client.Query.Engine`）。
+- **一个文件夹对应一个功能面**：写入的实现属 `Set/`，不要塞进 `Query/`。
+- **命名空间必须与文件夹一致**（`Client/Query/` → `NcLink.Client.Query`）。
   移动文件后立刻改命名空间，并删掉因此失效的 `using`。
+- **功能域内部不得出现 `Interfaces/`/`Models/`/`Parsers/`/`Engine/`/`Options/`/`Exceptions/`**
+  ——`check-structure.py` 的 `[2]` 会硬失败。项目根下的 `Models/`（.NET 常规布局）放行。
 - **测试项目不适用可见性规则**（xUnit 只发现 public 测试类）。
 
 ---
@@ -131,7 +134,7 @@ NcLink/
   请求重传会在设备上执行两次。
 - **`-Service` 后缀之外的 DI 扩展约定**：`AddNcLink(...)` 注册协议与客户端，
   `AddNcLinkMqtt(...)` 注册传输——**两个扩展都在 `NcLink` 包内**
-  （`Extensions/ServiceCollectionExtensions.cs` 与 `Transport/Mqtt/`），
+  （根目录 `ServiceCollectionExtensions.cs` 与 `Transport/Mqtt/`），
   但保持分开：只用内存传输做测试的调用方不必注册 MQTT。不要逼消费者手工 `new`。
 - **不为工厂自造接口**：MQTTnet 5 无 `IMqttClientFactory`，
   用 `Func<IMqttClient>` 工厂委托即可（标准手法）。
@@ -217,7 +220,7 @@ NcLink/
 
 `check-structure.py` 报错时不要为了通过检查而改代码。
 曾差点把 `IFileNodeAccessor` 改成 `public` 来迁就一条写错的规则——
-正确做法是核实规则本身（列出全部 `Interfaces/` 内容后确认规则误判）。
+正确做法是核实规则本身（列出全部该文件夹内容后确认规则误判）。
 
 ### 不要只凭编译通过就报告完成
 
@@ -239,7 +242,7 @@ NcLink/
 - **行内注释块不超过 4 行。** 注释写"为什么"，一两句就够；
   写到 5 行以上基本是把使用手册或架构说明塞进了注释，那属于 README / 本文档。
   实测 238 个注释块里 227 个（95%）≤3 行，自然断点就在 4 行。
-- **日志集中在 `General/Logging/`**，按组件分文件（`CorrelationLog` 等），
+- **日志集中在 `Logging/`**，按组件分文件（`CorrelationLog` 等），
   方法名 `Log<动作>`，EventId 按类分段。**不要在各组件内部写嵌套的 `Log` 类。**
 - **死代码直接删**，不要注释掉留着。
 
@@ -285,11 +288,10 @@ NcLink/
   `Controllers/**` 下按版本放，`[ApiController]` + `[HttpGet]`/`[HttpPost]` 特性路由。
 
   - **控制器必须 `public`**：MVC 的默认发现机制只认 public 类型（实测 internal 控制器全部 404）。
-  - **控制器只做路由与协议编解码**，逻辑放 `Engine/` 的 `internal static` 帮助类
+  - **控制器只做路由与协议编解码**，逻辑放 `Operations/` 的 `internal static` 帮助类
     （`DataOperations` / `FileOperations`）——internal 类型只出现在方法体内
     （不进入 public 签名），因此两边规则都满足，不需要框架 hack。
-  - 控制器需要注入的**有状态服务**（如 `ISampleCache`）抽公开接口放 `Interfaces/`，
-    实现在 `Engine/`——`Engine/` 只放 internal 是硬规则。
+  - 控制器需要注入的**有状态服务**（如 `ISampleCache`）与实现同放 `Operations/`。
   - **`[ApiController]` 的自动 400 必须关掉**
     （`SuppressModelStateInvalidFilter = true`）：它返回 `ValidationProblemDetails`，
     会破坏官方那套 Spring 形状的 400 错误体。

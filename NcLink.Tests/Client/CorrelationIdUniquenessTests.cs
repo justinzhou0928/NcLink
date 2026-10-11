@@ -1,10 +1,7 @@
 using System.Text.Json;
-using NcLink.Protocol.Contracts;
-using NcLink.Tests.Fakes;
 using NcLink.Protocol;
-using NcLink.Client.Connection.Engine;
-using NcLink.Client.Connection.Exceptions;
-using NcLink.Client.Connection.Options;
+using NcLink.Tests.Fakes;
+using NcLink.Client.Connection;
 using Microsoft.Extensions.Logging.Abstractions;
 namespace NcLink.Tests.Client;
 

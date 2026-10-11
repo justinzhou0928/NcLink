@@ -1,6 +1,6 @@
 using NcLink.Client;
-using NcLink.Client.Connection.Exceptions;
-using NcLink.Client.Devices.Models;
+using NcLink.Client.Connection;
+using NcLink.Client.Devices;
 
 namespace NcLink.Tests.Model;
 

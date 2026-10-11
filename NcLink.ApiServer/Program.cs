@@ -1,6 +1,6 @@
-using NcLink.ApiServer.Engine;
+using NcLink.ApiServer.Operations;
 using NcLink.ApiServer.Models;
-using NcLink.Extensions;
+using NcLink;
 using NcLink.Transport.Mqtt;
 
 // NcLink.ApiServer —— 官方 apiServer 的 C# 可替换实现。
@@ -21,8 +21,8 @@ builder.Services.AddNcLinkMqtt(o => o.BrokerAddress = options.BrokerAddress);
 builder.Services.AddNcLink(o => o.RequestTimeout = TimeSpan.FromMilliseconds(options.DefaultRequestTimeoutMs));
 
 // 服务端特有：采样缓存
-builder.Services.AddSingleton<NcLink.ApiServer.Interfaces.ISampleCache,
-    NcLink.ApiServer.Engine.SampleCache>();
+builder.Services.AddSingleton<NcLink.ApiServer.Operations.ISampleCache,
+    NcLink.ApiServer.Operations.SampleCache>();
 
 // 控制器 + v1/v2 共用的实现（控制器保持薄，逻辑在服务里）
 builder.Services.AddControllers();
@@ -57,8 +57,8 @@ builder.Services.AddControllers().AddJsonOptions(o =>
 // API 文档：由内置生成器从真实端点自动生成 OpenAPI 3。
 builder.Services.AddOpenApi("v1", o =>
 {
-    o.AddDocumentTransformer<NcLink.ApiServer.Engine.ApiDocs.ApiDocumentTransformer>();
-    o.AddOperationTransformer<NcLink.ApiServer.Engine.ApiDocs.MvcQuirksOperationTransformer>();
+    o.AddDocumentTransformer<NcLink.ApiServer.ApiDocs.ApiDocumentTransformer>();
+    o.AddOperationTransformer<NcLink.ApiServer.ApiDocs.MvcQuirksOperationTransformer>();
 });
 
 var app = builder.Build();
@@ -125,6 +125,6 @@ app.MapGet("/", () => Results.Text(
     .ExcludeFromDescription();
 
 var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("NcLink.ApiServer");
-NcLink.ApiServer.General.Logging.ApiServerLog.LogStarted(logger, $"http://0.0.0.0:{options.Port}", options.BrokerAddress);
+NcLink.ApiServer.Logging.ApiServerLog.LogStarted(logger, $"http://0.0.0.0:{options.Port}", options.BrokerAddress);
 
 await app.RunAsync();

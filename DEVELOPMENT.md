@@ -36,7 +36,7 @@ python tools/test-check-structure.py       # 审查脚本自身的自测（改�
 | 禁止 `// ----` 注释分割线 | 分区一律用 `#region` / `#endregion` |
 | 禁止 `-Service` 泛化后缀 | `ProbeService` → `DeviceProbe`；`HostedService` 按框架约定放行 |
 | 公开接口成员必须写 XML 文档 | 少写就没法在 IntelliSense 里看到 |
-| 日志类必须集中在 `General/Logging/` | 不得在组件内嵌套 `Log` 类 |
+| 日志类必须集中在 `Logging/` | 不得在组件内嵌套 `Log` 类 |
 | `#region`/`#endregion` 缩进一致且闭合 | 缩进不一致或漏 `#endregion` |
 | 不留 `TODO`/`FIXME`/`HACK` | 死代码与技术债直接处理掉 |
 | csproj 必须用 `Microsoft.NET.Sdk` | 曾误写成 `Microsoft.NET.Sdk.Web`（把库当 Web 应用） |
@@ -69,25 +69,41 @@ python tools/test-check-structure.py       # 审查脚本自身的自测（改�
 
 ### 目录组织约定
 
-**顶层文件夹按功能域划分，能力文件夹放在功能域内部。**
-不要把 `Models/`、`Interfaces/` 这类"按类型"的文件夹放在顶层——
-它们会横跨多个功能域，反而增加定位成本。
+**按功能域扁平分，不按"种类"分层。**
+
+判据一句话：**找一个类型时，应该按"它是干什么的"去找，而不是先猜它在
+`Interfaces/` 还是 `Models/` 还是 `Engine/`。**
 
 ```
-NcLink/                     顶层按功能域
-├── Protocol/               线上格式：主题、报文、编解码、协议契约
-├── General/                跨域共用：Logging/（集中式日志事件）
-├── Extensions/             依赖注入注册助手（静态扩展方法）
-├── Hosting/                宿主集成（IHostedService 实现，唯一需 Hosting.Abstractions）
-└── Client/                 客户端 —— 按官方手册的功能面划分
-    ├── NcLinkClient.cs     门面：只做装配与转发
-    ├── Interfaces/         INcLinkClient（组合下面三个能力）
-    ├── Query/              官方 5.1「查询」+ 探测 + 采样
-    ├── Set/                官方 5.1「设置」
-    ├── Files/              官方 5.2「获取/下发文件」
-    ├── Devices/            官方第 8 章「数据字典」（设备模型与探测）
-    └── Connection/         机制：连接、请求关联、配置、异常
+NcLink/
+├── NcLinkClient.cs          门面 + INcLinkClient
+├── ServiceCollectionExtensions.cs  依赖注入注册
+├── NcLinkHostedService.cs   宿主集成
+├── Protocol/                线上格式：主题、报文、编解码、协议契约
+├── Logging/                 集中式日志事件
+├── Transport/Mqtt/          MQTT 传输实现
+└── Client/                  客户端 —— 按官方手册的功能面划分
+    ├── Connection/          机制：连接、请求关联、配置、异常
+    ├── Devices/             官方第 8 章「数据字典」（设备模型、探测、缓存、解析）
+    ├── Query/               官方 5.1「查询」+ 采样
+    ├── Set/                 官方 5.1「设置」
+    └── Files/               官方 5.2「获取/下发文件」
 ```
+
+**为什么不再按种类分层**：这个仓库曾经把每个能力域切成
+`Interfaces/` + `Models/` + `Parsers/` + `Engine/` 四个子文件夹，
+结果是 57 个文件散在 **24 个文件夹**里，其中 **11 个只装 1 个文件**——
+`Client/Devices/Interfaces/` 里就 11 行，命名空间深到 5 段
+（`NcLink.Client.Connection.Engine.RequestCorrelator`）。
+
+那是 Java / DDD 的组织习惯（按"类型"分层），**.NET 的惯例是按功能域分，
+接口与实现同处一个命名空间**（`Microsoft.Extensions.Logging` 里
+`ILogger` 与 `LoggerFactory` 就在一起）。按种类分层在只有几千行的库里
+只增加定位成本，不带来任何约束力。
+
+这条有脚本强制（`check-structure.py` 的 `[2]`）：功能域内部出现
+`Interfaces/` / `Models/` / `Parsers/` / `Engine/` / `Options/` / `Exceptions/`
+会**硬失败**。项目根下的 `Models/`（.NET 常规布局）放行。
 
 **功能名以官方手册为准**：`Query` / `Set` 对应官方 5.1 的「查询」「设置」，
 `Files` 对应官方 5.2 的「获取/下发文件」。
@@ -96,39 +112,22 @@ NcLink/                     顶层按功能域
 **机制不提升为功能域**。连接管理、请求关联、配置、异常都是**实现手段**，
 不是对外功能，因此统一收在 `Connection/` 下，而不是与 `Query`/`Set` 平级。
 
-### 每个能力域内部的三层解剖（硬性约定）
-
-`Client/` 下的每个能力（`Query/` `Set/` `Files/` `Devices/` `Connection/`）
-内部都按同一套结构划分，三者不混放：
-
-| 子文件夹 | 放什么 | 内容约束 |
-|---|---|---|
-| `Interfaces/` | **只放 interface** | 出现 `class` / `record` / `enum` / `struct` 即违规 |
-| `Models/` | **只放数据形状**（DTO、值类型、选项、上下文） | 出现 `interface` 或 `*Parser` 即违规 |
-| `Parsers/` | **只放解析行为**（把一种表示转成另一种） | 出现 `interface` / `record` / `enum` / `struct` 即违规 |
-| `Engine/` | **只放实现** | 出现 `public` 类型即违规（实现是 internal） |
-
-`Parsers/` 的判据是 `PlcLibrary` 的 `DriverDomain/Parser/`
-（放 `ConnectionStringBinder`、`DataTypeMapper` 这类转换类）。
-只有"解析/转换"本身成规模时才建这个文件夹——只有一个 `XxxParser` 且无其它转换逻辑时，
-放 `Engine/` 也可以。本项目的例子：`Devices/Parsers/DeviceModelParser.cs`
-（把 `model.json` 文本转成 `DeviceModel`）。
+**一个功能域一个文件夹**：写入的实现属 `Set/`，不要塞进 `Query/`。
 
 **关于可见性**：
 
-- `Interfaces/` 里 **public 与 internal 接口可以共存**——
-  对外发布的契约是 public（`IQuery` / `IFileTransfer`），
-  只给本程序集用的窄接口是 internal（`IFileNodeAccessor` / `IRequestPipeline`）。
-  它们都是契约，不算混放。
-- `Engine/` 必须全 internal。若某个实现需要 public，说明它其实是对外契约，
-  该放 `Interfaces/` 或 `Models/`。
+- 同一个功能域里 **public 与 internal 类型可以共存**——
+  对外发布的是 public（`IQuery` / `IFileTransfer`），
+  只给本程序集用的是 internal（`IRequestPipeline` / `DataItemOperations`）。
+  可见性由类型自身决定，不再靠文件夹区分（这正是去掉 `Engine/` 的原因）。
+- **测试项目不适用可见性规则**：xUnit 只发现 public 测试类，测试代码本就是 public。
 
-**测试项目不适用可见性规则**：xUnit 只发现 public 测试类，测试代码本就是 public。
-测试的 `Interfaces/` / `Models/` 也不适用内容约束——那里是测试夹具。
+**命名空间必须与文件夹一致**（`Client/Query/` → `NcLink.Client.Query`）——
+这条由 `check-structure.py` 的 `[1]` 强制。
 
 ### 命名：类型名说明"它是什么"，不用泛化后缀
 
-`Engine/` 下各实现的命名遵循一条：**名字应能直接回答"这是什么"**。
+各实现的命名遵循一条：**名字应能直接回答"这是什么"**。
 
 | 好（说明是什么） | 差（什么也没说） |
 |---|---|
@@ -142,8 +141,8 @@ NcLink/                     顶层按功能域
 
 **实现类的名字应尽量对应它实现的接口**：`DeviceProbe : IDeviceProbe`、
 `RequestCorrelator : IRequestCorrelator`、`DataItemReader : IDataItemReader`。
-命名空间已经区分了接口与实现（`Devices.Interfaces` vs `Devices.Engine`），
-名字本身不必再靠前缀或后缀去区分。
+接口与实现在同一个命名空间里，靠名字本身区分（`IDeviceProbe` / `DeviceProbe`），
+不靠前缀或后缀。
 
 **判据不是"它是否做编排"，而是"名字能否回答这是什么"。**
 做编排不构成使用泛化后缀的理由。本仓库因此不再有 `-Service` 后缀的实现类
@@ -158,7 +157,7 @@ NcLink/                     顶层按功能域
 
 这条约定来自一次真实的命名误导：原来的 `QueryService` **同时实现了查询与设置**
 （4 个公开方法），名字却只说"查询"，导致 `Set/` 文件夹里只有接口没有实现。
-拆分后是 `Query/Engine/DataItemReader` + `Set/Engine/DataItemWriter`，
+拆分后是 `Query/DataItemReader` + `Set/DataItemWriter`，
 功能面归属也随之正确。
 
 **判断方法**：如果一个类需要 `-Service` 后缀才能说清它是干嘛的，
@@ -172,7 +171,7 @@ NcLink/                     顶层按功能域
 实现包（`Microsoft.Extensions.DependencyInjection`、`Microsoft.Extensions.Logging`）
 只出现在**测试项目**里。
 
-DI 扩展**放在核心包内**（`Extensions/ServiceCollectionExtensions.cs`），
+DI 扩展**放在核心包内**（根目录 `ServiceCollectionExtensions.cs`），
 不单独建包——消费方引用核心包即可用 `services.AddNcLink(...)`。
 
 **传输的 DI 扩展独立成一个方法**：`AddNcLinkMqtt(...)`
@@ -183,7 +182,7 @@ DI 扩展**放在核心包内**（`Extensions/ServiceCollectionExtensions.cs`）
 MQTTnet 5 没有 `IMqttClientFactory` 接口，`MqttTransport` 用 **`Func<IMqttClient>`
 工厂委托**做注入点——这是 .NET 的标准手法，比为一个工厂自造接口更轻。
 
-`Hosting/NcLinkHostedService.cs` 提供宿主集成（`AddNcLinkHostedService()`），
+根目录 `NcLinkHostedService.cs` 提供宿主集成（`AddNcLinkHostedService()`），
 只引 **`Microsoft.Extensions.Hosting.Abstractions`** 而非完整的
 `Microsoft.Extensions.Hosting`（后者会拖进 DI 容器、配置实现、文件提供程序等）。
 该抽象包已在用的 6 个 `Microsoft.Extensions.*` 之外只多 `Diagnostics.Abstractions`
@@ -256,7 +255,7 @@ NC-Link 协议只有 MQTT 一种传输，拆成独立程序集只会让消费者
 NcLink.Tests/
 ├── Device/          设备模型与路径解析、索引区间
 ├── Protocol/        主题规则、编解码、报文结构
-├── Engine/          请求-响应关联（含迟到响应防误领）
+├── Connection/      请求-响应关联（含迟到响应防误领）
 ├── Client/          数据服务、采样服务
 ├── Files/           文件传输（分块、偏移推进、GB2312、十六进制）
 ├── Extensions/      DI 注册与选项校验
@@ -402,7 +401,7 @@ _pipeline.ForwardSamplesTo(message => samples.TryDispatch(message));
 
 官方 apiServer 的 C# 可替换实现，是本仓库唯一的 Web 项目（`Microsoft.NET.Sdk.Web`）。
 它只做两件事：HTTP 形状 ↔ 库调用的编解码，以及服务端特有的采样缓存
-（`Engine/SampleCache.cs`）。**协议逻辑一律在 `NcLink` 库里，不要搬进这里。**
+（`Operations/SampleCache.cs`）。**协议逻辑一律在 `NcLink` 库里，不要搬进这里。**
 
 ```powershell
 dotnet run --project NcLink.ApiServer                                  # 默认 19001

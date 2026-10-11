@@ -1,6 +1,6 @@
 using NcLink.Client;
-using NcLink.Client.Connection.Exceptions;
-using NcLink.Client.Query.Models;
+using NcLink.Client.Connection;
+using NcLink.Client.Query;
 
 namespace NcLink.Tests.Integration;
 

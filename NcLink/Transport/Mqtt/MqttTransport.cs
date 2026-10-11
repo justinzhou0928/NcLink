@@ -2,8 +2,8 @@ using System.Collections.Concurrent;
 using System.Text;
 using MQTTnet;
 using MQTTnet.Protocol;
-using NcLink.Protocol.Contracts;
-using NcLink.Client.Connection.Exceptions;
+using NcLink.Protocol;
+using NcLink.Client.Connection;
 
 namespace NcLink.Transport.Mqtt;
 

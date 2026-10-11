@@ -3,17 +3,12 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NcLink.Client;
-using NcLink.Client.Connection.Engine;
-using NcLink.Client.Connection.Options;
-using NcLink.Client.Devices.Engine;
-using NcLink.Client.Devices.Interfaces;
-using NcLink.Client.Devices.Models;
-using NcLink.Client.Devices.Parsers;
-using NcLink.Client.Query.Engine;
-using NcLink.Client.Set.Engine;
-using NcLink.Extensions;
+using NcLink.Client.Connection;
+using NcLink.Client.Devices;
+using NcLink.Client.Query;
+using NcLink.Client.Set;
+using NcLink;
 using NcLink.Protocol;
-using NcLink.Protocol.Contracts;
 
 namespace NcLink.Tests.Fakes;
 

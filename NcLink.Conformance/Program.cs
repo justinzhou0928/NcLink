@@ -5,10 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NcLink.Client;
-using NcLink.Client.Interfaces;
-using NcLink.Client.Query.Models;
-using NcLink.Extensions;
-using NcLink.Protocol.Contracts;
+using NcLink.Client.Query;
+using NcLink;
+using NcLink.Protocol;
 using NcLink.Transport.Mqtt;
 
 namespace NcLink.Conformance;

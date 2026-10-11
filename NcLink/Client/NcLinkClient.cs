@@ -1,12 +1,10 @@
 using Microsoft.Extensions.Logging;
-using NcLink.Client.Connection.Engine;
-using NcLink.Client.Files.Interfaces;
-using NcLink.Client.Interfaces;
-using NcLink.Client.Query.Engine;
-using NcLink.Client.Query.Interfaces;
-using NcLink.Client.Query.Models;
-using NcLink.Client.Set.Interfaces;
-using NcLink.Protocol.Contracts;
+using NcLink.Client.Connection;
+using NcLink.Client.Files;
+using NcLink.Client;
+using NcLink.Client.Query;
+using NcLink.Client.Set;
+using NcLink.Protocol;
 
 namespace NcLink.Client;
 
@@ -20,7 +18,7 @@ namespace NcLink.Client;
 /// <item><see cref="IFileTransfer"/>（官方 5.2 文件）—— <c>FileTransfer</c></item>
 /// </list>
 ///
-/// <b>推荐通过 <c>services.AddNcLink(...)</c> 注册</b>（见 <c>NcLink.Extensions</c>），
+/// <b>推荐通过 <c>services.AddNcLink(...)</c> 注册</b>（见 <c>NcLink</c>），
 /// 构造函数虽是 public、但形参为 internal 类型，因此只应由容器解析。
 ///
 /// 生命周期：持有 <see cref="INcLinkTransport"/> 的所有权，
@@ -77,7 +75,7 @@ public sealed class NcLinkClient : INcLinkClient, IDisposable
     }
 
     /// <inheritdoc />
-    public void RegisterModel(Devices.Models.DeviceModel model)
+    public void RegisterModel(Devices.DeviceModel model)
     {
         ThrowIfDisposed();
         _query.RegisterModel(model);
@@ -88,7 +86,7 @@ public sealed class NcLinkClient : INcLinkClient, IDisposable
     #region 查询（官方 5.1 查询）
 
     /// <inheritdoc />
-    public Task<Devices.Models.DeviceModel> ProbeAsync(
+    public Task<Devices.DeviceModel> ProbeAsync(
         string deviceId, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -96,7 +94,7 @@ public sealed class NcLinkClient : INcLinkClient, IDisposable
     }
 
     /// <inheritdoc />
-    public Task<Devices.Models.DeviceModel> GetModelAsync(
+    public Task<Devices.DeviceModel> GetModelAsync(
         string deviceId, bool refresh = false, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();

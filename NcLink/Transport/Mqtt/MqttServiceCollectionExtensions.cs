@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using MQTTnet;
-using NcLink.Protocol.Contracts;
+using NcLink.Protocol;
 
 namespace NcLink.Transport.Mqtt;
 

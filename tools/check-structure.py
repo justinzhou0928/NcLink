@@ -81,85 +81,35 @@ def check_namespace(project_name, rows):
     return problems
 
 
-def check_purity(project_name, rows):
+# 按"种类"分的文件夹名。这类拆分在 Java/DDD 里常见，在 .NET 里是多余的：
+# 一个 4000 行的库被切成 24 个文件夹、其中 11 个只装 1 个文件，
+# 找一个类型要先猜它在 Interfaces/ 还是 Models/ 还是 Engine/。
+# .NET 的惯例是**按功能域分**，接口与实现同处一个命名空间。
+KIND_DIRS = ('Interfaces', 'Models', 'Parsers', 'Engine', 'Options', 'Exceptions')
+
+
+def check_kind_folders(project_root):
     """
-    Engine/ 只能放实现（internal）。这条只适用于**生产项目**。
+    禁止在功能域内部再按"种类"分子文件夹。
 
-    public 契约放 Interfaces/ + Models/；Engine/ 是内部实现，
-    出现 public 类型就是放错了地方。
+    判据：文件夹名落在 KIND_DIRS 里，**且它不是项目根的直接子项**
+    （项目根下的 `Models/` 是 .NET 常规布局，允许）。
 
-    注意：Interfaces/ 里同时有 public 与 internal **接口**是正常的
-    （对外发布的契约 public，只给本程序集用的窄接口 internal），
-    这条规则只针对 Engine/。
-
-    测试项目不适用：xUnit 只发现 public 测试类，测试代码本就是 public。
-    """
-    if project_name == 'NcLink.Tests':
-        return []
-
-    by_dir = defaultdict(list)
-    for rel, _, visibility in rows:
-        by_dir[os.path.dirname(rel)].append((os.path.basename(rel), visibility))
-
-    problems = []
-    for d, entries in sorted(by_dir.items()):
-        if not d:
-            continue
-        if 'Engine' not in d.split(os.sep):
-            continue
-        public_files = [f for f, v in entries if 'public' in v]
-        if not public_files:
-            continue
-        internal_files = [f for f, v in entries if 'internal' in v]
-        problems.append((d, public_files, internal_files))
-    return problems
-
-
-def check_capability_purity(project_root):
-    """
-    能力文件夹的内容必须单一：
-
-      Interfaces/  只放 interface
-      Models/      只放数据形状（class / record / enum / struct）
-      Parsers/     只放解析行为（class），不放数据形状、不放 interface
-
-    这是最容易退化的一条：把配套的 DTO / 选项类型顺手写在接口文件里，
-    文件看着"内聚"，但 Interfaces/ 就不再是"这个能力对外提供什么"的单一答案。
+    历史上 NcLink/ 被切成 24 个文件夹、11 个只装 1 个文件，
+    `Client/Devices/Interfaces/` 里就 11 行。扁平化后是 11 个文件夹、2 个单文件。
     """
     problems = []
-    for dirpath, _, files in os.walk(project_root):
+    for dirpath, dirs, _ in os.walk(project_root):
         if os.sep + 'bin' in dirpath or os.sep + 'obj' in dirpath:
             continue
-        rel_dir = os.path.relpath(dirpath, project_root)
-        parts = rel_dir.split(os.sep)
-        if not ({'Interfaces', 'Models', 'Parsers'} & set(parts)):
-            continue
-        for f in files:
-            if not f.endswith('.cs'):
+        dirs[:] = [d for d in dirs if d not in ('bin', 'obj')]
+        for d in list(dirs):
+            if d not in KIND_DIRS:
                 continue
-            text = read(os.path.join(dirpath, f))
-            kinds = re.findall(
-                r'^\s*(?:public|internal)\s+(?:sealed\s+|abstract\s+|static\s+|partial\s+|readonly\s+)*'
-                r'(class|interface|record|enum|struct)\s+(\w+)', text, re.M)
-            names = {k: [n for kk, n in kinds if kk == k] for k in
-                     ('class', 'interface', 'record', 'enum', 'struct')}
-            rel = os.path.join(rel_dir, f)
-            data = names['record'] + names['enum'] + names['struct']
-
-            if 'Interfaces' in parts:
-                if names['class'] + data:
-                    problems.append((rel, f'Interfaces/ 里混入数据形状: '
-                                          f'{", ".join(names["class"] + data)}'))
-            if 'Models' in parts:
-                if names['interface']:
-                    problems.append((rel, f'Models/ 里混入接口: {", ".join(names["interface"])}'))
-                if names['class'] and 'Parser' in f:
-                    problems.append((rel, f'Models/ 里混入解析器: {", ".join(names["class"])}'))
-            if 'Parsers' in parts:
-                if names['interface']:
-                    problems.append((rel, f'Parsers/ 里混入接口: {", ".join(names["interface"])}'))
-                if data:
-                    problems.append((rel, f'Parsers/ 里混入数据形状: {", ".join(data)}'))
+            rel_dir = os.path.relpath(os.path.join(dirpath, d), project_root)
+            if os.sep not in rel_dir:
+                continue
+            problems.append(rel_dir)
     return problems
 
 
@@ -398,17 +348,10 @@ def main():
         for rel, expected, actual in ns_problems:
             print(f'      {rel}: 期望 {expected} / 实际 {actual}')
 
-        purity = check_purity(project, rows)
-        print(f'[2] public 契约与 internal 实现混放: {len(purity)} 处')
-        for d, pub, internal in purity:
-            print(f'      {d}/')
-            print(f'          public  : {", ".join(pub)}')
-            print(f'          internal: {", ".join(internal)}')
-
-        cap_purity = check_capability_purity(project_root)
-        print(f'[3] Interfaces/ 与 Models/ 内容不纯: {len(cap_purity)} 处')
-        for rel, detail in cap_purity:
-            print(f'      {rel}: {detail}')
+        kind_folders = check_kind_folders(project_root)
+        print(f'[2] 按种类分的子文件夹: {len(kind_folders)} 处')
+        for rel_dir in kind_folders:
+            print(f'      {rel_dir}')
 
         fine = check_too_fine(project_root)
         print(f'[4] 只有一个文件的文件夹: {len(fine)} 处')
@@ -421,7 +364,7 @@ def main():
             print(f'      {rel}:{ln}  {detail}')
 
         print()
-        total += len(ns_problems) + len(purity) + len(cap_purity) + len(style)
+        total += len(ns_problems) + len(kind_folders) + len(style)
 
     print('=' * 70)
     print(f'[6] 构建文件里的注释: {len(build_comments)} 处')

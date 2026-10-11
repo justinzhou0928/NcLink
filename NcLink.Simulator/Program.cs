@@ -1,6 +1,5 @@
 using System.Text;
-using NcLink.Client.Devices.Models;
-using NcLink.Client.Devices.Parsers;
+using NcLink.Client.Devices;
 using NcLink.Protocol;
 using NcLink.Simulator;
 

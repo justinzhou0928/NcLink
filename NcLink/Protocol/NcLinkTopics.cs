@@ -1,4 +1,4 @@
-using NcLink.Protocol.Contracts;
+using NcLink.Protocol;
 
 namespace NcLink.Protocol;
 

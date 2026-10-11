@@ -1,12 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
-using NcLink.Extensions;
+using NcLink;
 using NcLink.Protocol;
-using NcLink.Protocol.Contracts;
 using NcLink.Tests.Fakes;
 using NcLink.Client;
-using NcLink.Client.Connection.Engine;
-using NcLink.Client.Interfaces;
-using NcLink.Client.Connection.Options;
+using NcLink.Client.Connection;
 
 namespace NcLink.Tests.Extensions;
 
@@ -111,7 +108,7 @@ public sealed class ServiceCollectionExtensionsTests
         await using var provider = services.BuildServiceProvider();
 
         var options = provider.GetRequiredService<
-            Microsoft.Extensions.Options.IOptions<NcLink.Client.Connection.Options.CorrelationOptions>>().Value;
+            Microsoft.Extensions.Options.IOptions<NcLink.Client.Connection.CorrelationOptions>>().Value;
 
         Assert.Equal(TimeSpan.FromMinutes(17), options.ActivityWindow);
     }
@@ -121,7 +118,7 @@ public sealed class ServiceCollectionExtensionsTests
     {
         // 超时的唯一来源是 NcLinkClientOptions.RequestTimeout。
         // 若 CorrelationOptions 又出现一个超时属性，就会产生"改了一个不生效"的困惑。
-        var propertyNames = typeof(NcLink.Client.Connection.Options.CorrelationOptions)
+        var propertyNames = typeof(NcLink.Client.Connection.CorrelationOptions)
             .GetProperties().Select(p => p.Name).ToArray();
 
         Assert.DoesNotContain("DefaultTimeout", propertyNames);

@@ -1,9 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NcLink.Client;
-using NcLink.Extensions;
-using NcLink.Hosting;
-using NcLink.Protocol.Contracts;
+using NcLink;
+using NcLink.Protocol;
 using NcLink.Tests.Fakes;
 
 namespace NcLink.Tests.Hosting;

@@ -1,11 +1,8 @@
 using NcLink.Protocol;
-using NcLink.Protocol.Contracts;
 using NcLink.Tests.Fakes;
-using NcLink.Client.Connection.Exceptions;
-using NcLink.Client.Devices.Models;
-using NcLink.Client.Query.Engine;
-using NcLink.Client.Query.Models;
-using NcLink.Client.Devices.Parsers;
+using NcLink.Client.Connection;
+using NcLink.Client.Devices;
+using NcLink.Client.Query;
 
 namespace NcLink.Tests.Client;
 

@@ -1,9 +1,9 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using NcLink.ApiServer.Engine;
-using NcLink.ApiServer.General.Logging;
+using NcLink.ApiServer.Operations;
+using NcLink.ApiServer.Logging;
 using NcLink.ApiServer.Models;
-using NcLink.Client.Query.Interfaces;
+using NcLink.Client.Query;
 
 namespace NcLink.ApiServer.Controllers;
 
@@ -58,7 +58,7 @@ public sealed class ModelController(
     {
         try
         {
-            if (!NcLink.Client.Devices.Parsers.DeviceModelParser.TryParse(
+            if (!NcLink.Client.Devices.DeviceModelParser.TryParse(
                     model.GetRawText(), deviceId, out var parsed, out var error))
             {
                 ApiServerLog.LogBadDataRequest(logger, $"模型解析失败：{error}");
