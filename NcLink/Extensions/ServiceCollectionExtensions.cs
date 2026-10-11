@@ -20,7 +20,7 @@ using NcLink;
 using NcLink.Protocol.Interfaces;
 using NcLink.Protocol.Engine;
 
-namespace NcLink;
+namespace NcLink.Extensions;
 
 /// <summary>
 /// 依赖注入扩展：<c>services.AddNcLink(...)</c>。用法与注册内容见

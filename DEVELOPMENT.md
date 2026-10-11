@@ -91,21 +91,21 @@ python tools/test-check-structure.py       # 审查脚本自身的自测（改�
 |---|---|---|
 | `Client/` | 2 | 就是 `INcLinkClient` + `NcLinkClient` 一对，分完是两个各 1 个的空壳 |
 | `Logging/` | 5 | 5 个全是同一作用（静态日志类），分了只是多一层 |
-| `Transport/Mqtt/` | 3 | 分完是 3 个各 1 个的空壳，且其中一个是 DI 扩展 —— 与库根的 `ServiceCollectionExtensions.cs` 同类，本来就不进作用夹 |
+| `Transport/Mqtt/` | 3 | 分完是 3 个各 1 个的空壳，且其中一个是 DI 扩展 —— 与 `Extensions/ServiceCollectionExtensions.cs` 同类，本来就不进作用夹 |
 
 ```
 NcLink/
-├── NcLinkClient.cs / INcLinkClient.cs      门面（2 个，接口+实现，不分层）
-├── ServiceCollectionExtensions.cs          依赖注入注册
-├── NcLinkHostedService.cs                  宿主集成
+├── NcLinkHostedService.cs                  宿主集成（库根只剩这一个）
+├── Extensions/                             依赖注入注册（ServiceCollectionExtensions）
 ├── Exceptions/                             异常层次（10 个类型，库级公开契约）
 ├── Protocol/                               线上格式（10 个 → 按作用分）
 │   ├── Interfaces/  INcLinkCodec / INcLinkTopics / INcLinkTransport
 │   ├── Models/      NcLinkEnvelope / NcLinkMessages / NcLinkOperation / NcLinkProtocolPaths
 │   └── Engine/      JsonNcLinkCodec / NcJsonValue / NcLinkTopics
 ├── Logging/                                集中式日志事件（5 个，全同一作用 → 不分）
-├── Transport/Mqtt/                         MQTT 传输实现（3 个 → 不分，见下）
+├── Transport/Mqtt/                         MQTT 传输实现（3 个 → 不分）
 └── Client/
+    ├── NcLinkClient.cs / INcLinkClient.cs  门面（2 个，接口+实现 → 不分）
     ├── Connection/   6 个 → Interfaces(1) Models(1) Options(2) Engine(2)
     ├── Devices/      9 个 → Interfaces(1) Models(5) Engine(3)
     ├── Files/        4 个 → Interfaces(1) Models(1) Engine(2)
@@ -180,7 +180,7 @@ NcLink/
 实现包（`Microsoft.Extensions.DependencyInjection`、`Microsoft.Extensions.Logging`）
 只出现在**测试项目**里。
 
-DI 扩展**放在核心包内**（根目录 `ServiceCollectionExtensions.cs`），
+DI 扩展**放在核心包内**（`Extensions/ServiceCollectionExtensions.cs`），
 不单独建包——消费方引用核心包即可用 `services.AddNcLink(...)`。
 
 **传输的 DI 扩展独立成一个方法**：`AddNcLinkMqtt(...)`

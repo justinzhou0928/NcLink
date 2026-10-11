@@ -284,6 +284,10 @@
   曾是库的公开 API，但使用者只有同仓库的 `NcLink.Tests`（测试夹具）与
   `NcLink.Simulator`（不传 `--model` 时的默认设备模型）——演示资产不该出现在
   公开 API 面上。`InternalsVisibleTo` 相应加上 `NcLink.Simulator`。
+- **DI 注册扩展移入 `Extensions/`**（`ServiceCollectionExtensions.cs`，
+  命名空间 `NcLink.Extensions`），库根只剩 `NcLinkHostedService.cs`。
+  调用方需改用 `using NcLink.Extensions;`。对应 eShopOnWeb 的 `ApplicationCore/Extensions/`。
+  顺带修正了结构树里一处**本来就画错的地方**：`NcLinkClient.cs` 一直在 `Client/` 下。
 - **立场转变：从"忠实复刻官方"改为"官方正确处对齐，坏处修好"。**
   触发点是反编译了厂家 jar（`nclink-api-server-0.3.10.jar` 内含
   `nclink-core-2.1.3.jar`，142 个类），拿到了权威实现而非实测推断。

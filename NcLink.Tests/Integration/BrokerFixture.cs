@@ -7,6 +7,7 @@ using NcLink.Client.Connection.Options;
 using NcLink.Client.Devices.Models;
 using Microsoft.Extensions.DependencyInjection;
 using NcLink;
+using NcLink.Extensions;
 
 namespace NcLink.Tests.Integration;
 

@@ -4,6 +4,7 @@ using NcLink.Client;
 using NcLink;
 using NcLink.Protocol.Models;
 using NcLink.Tests.Fakes;
+using NcLink.Extensions;
 
 namespace NcLink.Tests.Hosting;
 

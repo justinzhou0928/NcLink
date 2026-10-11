@@ -5,6 +5,7 @@ using NcLink.Protocol.Engine;
 using NcLink.Tests.Fakes;
 using NcLink.Client;
 using NcLink.Client.Connection.Options;
+using NcLink.Extensions;
 
 namespace NcLink.Tests.Extensions;
 

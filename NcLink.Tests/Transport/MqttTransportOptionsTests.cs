@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using NcLink;
 using NcLink.Protocol.Interfaces;
 using NcLink.Transport.Mqtt;
+using NcLink.Extensions;
 
 namespace NcLink.Tests.Transport;
 

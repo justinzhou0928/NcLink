@@ -6,6 +6,7 @@ using NcLink.Protocol.Interfaces;
 using NcLink.Tests.Fakes;
 using NcLink.Transport.Mqtt;
 using NcLink.Client.Files.Interfaces;
+using NcLink.Extensions;
 
 namespace NcLink.Tests.Extensions;
 

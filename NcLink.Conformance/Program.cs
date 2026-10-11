@@ -9,6 +9,7 @@ using NcLink.Client.Query.Models;
 using NcLink;
 using NcLink.Protocol.Models;
 using NcLink.Transport.Mqtt;
+using NcLink.Extensions;
 
 namespace NcLink.Conformance;
 

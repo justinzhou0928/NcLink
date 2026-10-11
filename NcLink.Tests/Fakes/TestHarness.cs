@@ -13,6 +13,7 @@ using NcLink;
 using NcLink.Protocol.Interfaces;
 using NcLink.Protocol.Models;
 using NcLink.Protocol.Engine;
+using NcLink.Extensions;
 
 namespace NcLink.Tests.Fakes;
 
