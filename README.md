@@ -146,9 +146,10 @@ services.AddNcLinkHostedService();   // 随宿主启动连接，随宿主停止�
 | 异常 | 含义 |
 |---|---|
 | `NcLinkTimeoutException` | 设备出现过但本次未响应 |
-| `DeviceUnavailableException` | 设备从未出现／SN 错误（比"超时"更可操作） |
-| `ModelPathNotFoundException` | 路径／标识在模型里不存在 |
-| `DeviceOperationFailedException` | 设备返回 `NG` |
+| `NcLinkDeviceUnavailableException` | 设备从未出现／SN 错误（比"超时"更可操作） |
+| `NcLinkModelPathNotFoundException` | 路径／标识在模型里不存在 |
+| `NcLinkDeviceRejectedException` | 设备返回 `NG` |
+| `NcLinkInvalidRequestException` | 模型尚未加载，需先 `ProbeAsync`/`GetModelAsync` |
 | `NcLinkNotConnectedException` | 传输未连接 |
 
 ## 离线联调
@@ -274,7 +275,7 @@ MQTT 实现在 `NcLink` 包内的 `Transport/Mqtt/`——NC-Link 协议只有 MQ
 | `Probe/Query/Request/{SN}` → `Probe/Query/Response/{SN}` | 取设备模型（model.json） |
 | `Query/Request/{SN}` → `Query/Response/{SN}` | 取值（get_value / get_keys / get_attributes / get_length） |
 | `Set/Request/{SN}` → `Set/Response/{SN}` | 设值 / 位操作 / 文件操作（set_value / add / delete） |
-| `Sample/{channelId}` | 采样数据推送 |
+| `Sample/{deviceId}/{channelId}` | 采样数据推送 |
 | `Register/Request` | 设备注册（字段名是**小写** `deviceid`） |
 
 `{SN}` 即设备 SN 码（面板「维护 → 注册」可查）。
@@ -304,10 +305,12 @@ VARIABLE@REG_X                                    ← 标识
 
 ### 采样归因
 
-`Sample/{channelId}` 不含设备 SN。多台设备共用相同通道 id 时，
-数据会被**丢弃**而不是猜测归属（错误归因比丢一帧更难排查）。
-生产环境请让通道 id 唯一，或每台设备用独立 `NcLinkClient` 连接。
-丢弃计数见 `NcLinkClient.DroppedAmbiguousSampleFrames`。
+采样主题是 `Sample/{deviceId}/{channelId}`（**三层，含设备 SN**），
+因此归属是确定的，**不存在"通道 id 歧义"**——多台设备可以安全地共用同一个通道 id。
+
+> 曾有一版实现把主题当成两层 `Sample/{channelId}`，并据此设计了"多设备共用通道 id 时
+> 丢弃该帧"的猜测式归因。那是错的，会导致订阅后永远收不到帧。
+> 详见 [AGENTS.md](AGENTS.md) §4 与 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 用于真实机床前必须确认
 
