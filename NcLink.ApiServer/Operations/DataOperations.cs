@@ -2,7 +2,6 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using NcLink.ApiServer.Logging;
 using NcLink.ApiServer.Models;
-using NcLink.Client.Connection;
 using NcLink.Client.Query.Interfaces;
 using NcLink.Client.Set;
 

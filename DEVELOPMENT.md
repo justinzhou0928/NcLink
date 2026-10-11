@@ -82,6 +82,7 @@ python tools/test-check-structure.py       # 审查脚本自身的自测（改�
 
 ```
 NcLink/
+├── NcLinkException.cs                      异常层次（10 个类型，库级公开契约）
 ├── NcLinkClient.cs / INcLinkClient.cs      门面
 ├── ServiceCollectionExtensions.cs          依赖注入注册
 ├── NcLinkHostedService.cs                  宿主集成
@@ -92,7 +93,7 @@ NcLink/
 ├── Logging/                                集中式日志事件（5 个，扁平）
 ├── Transport/Mqtt/                         MQTT 传输实现（3 个，扁平）
 └── Client/
-    ├── Connection/   机制：连接、请求关联、配置、异常（7 个，扁平）
+    ├── Connection/   机制：连接、请求关联、配置（6 个，扁平）
     ├── Devices/      官方第 8 章「数据字典」（9 个，扁平）
     ├── Files/        官方 5.2「获取/下发文件」（4 个，扁平）
     ├── Set/          官方 5.1「设置」（3 个，扁平）
@@ -121,8 +122,14 @@ NcLink/
 `Files` 对应官方 5.2 的「获取/下发文件」。
 不要自创功能名——手册怎么叫，代码就怎么叫，读文档与读代码才对得上。
 
-**机制不提升为功能域**。连接管理、请求关联、配置、异常都是**实现手段**，
+**机制不提升为功能域**。连接管理、请求关联、配置都是**实现手段**，
 不是对外功能，因此统一收在 `Connection/` 下，而不是与 `Query`/`Set` 平级。
+
+**异常层次放在库根**（`NcLinkException.cs`，命名空间 `NcLink`），不跟着机制走。
+它是**库级公开契约**：8 个层里有 7 个引用它，且其中一半的类型
+（`NcLinkInvalidRequestException` / `NcLinkModelPathNotFoundException` /
+`NcLinkProtocolException`）跟"连接"无关。放库根还让传输层不必反向依赖
+Client 层。.NET 惯例同此（`System.Text.Json.JsonException` 就在根命名空间）。
 
 **一个功能域一个文件夹**：写入的实现属 `Set/`，不要塞进 `Query/`。
 

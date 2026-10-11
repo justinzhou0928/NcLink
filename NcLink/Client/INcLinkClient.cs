@@ -1,4 +1,3 @@
-using NcLink.Client.Connection;
 using NcLink.Client.Files;
 using NcLink.Client.Query.Interfaces;
 using NcLink.Client.Set;

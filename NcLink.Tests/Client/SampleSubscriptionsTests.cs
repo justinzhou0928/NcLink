@@ -1,7 +1,6 @@
 using System.Text.Json;
 using NcLink.Tests.Fakes;
 using NcLink.Protocol.Models;
-using NcLink.Client.Connection;
 using NcLink.Client.Query.Models;
 using NcLink.Client.Query.Engine;
 

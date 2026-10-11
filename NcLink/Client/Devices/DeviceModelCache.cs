@@ -2,7 +2,6 @@ using NcLink.Client.Devices;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using NcLink.Client.Connection;
 
 namespace NcLink.Client.Devices;
 

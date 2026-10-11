@@ -1,6 +1,5 @@
 using NcLink.Protocol.Models;
 using NcLink.Client.Files;
-using NcLink.Client.Connection;
 using NcLink.Client.Query.Interfaces;
 using NcLink.Client.Query.Models;
 using NcLink.Client.Set;

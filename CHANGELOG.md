@@ -263,6 +263,12 @@
   规则与实际长期不符）；补 RepositoryUrl / PackageProjectUrl / Copyright；
   新增 `THIRD-PARTY-NOTICES.md`（全部依赖许可证，随包发布的 12 个全是 MIT，
   无 copyleft）；4 个包升级到最新（Test.Sdk 18 让 **Newtonsoft.Json 从依赖图消失**）。
+- **异常层次移到库根**（`NcLinkException.cs`，命名空间 `NcLink`）。它是**库级公开契约**
+  而非"连接机制"：实测 8 个层里有 7 个引用它，且其中一半的类型
+  （`NcLinkInvalidRequestException` / `NcLinkModelPathNotFoundException` /
+  `NcLinkProtocolException`）与连接无关。**顺带修掉一条分层问题**——
+  `MqttTransport` 此前必须 `using NcLink.Client.Connection;` 才能抛
+  `NcLinkNotConnectedException`，传输层因此反向依赖 Client 层，现已消失。
 - **立场转变：从"忠实复刻官方"改为"官方正确处对齐，坏处修好"。**
   触发点是反编译了厂家 jar（`nclink-api-server-0.3.10.jar` 内含
   `nclink-core-2.1.3.jar`，142 个类），拿到了权威实现而非实测推断。

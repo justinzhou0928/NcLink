@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using NcLink.Protocol.Models;
-using NcLink.Client.Connection;
 using NcLink.Client.Devices;
 using NcLink.Client.Query.Models;
 

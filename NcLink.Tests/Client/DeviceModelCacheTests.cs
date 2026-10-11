@@ -1,4 +1,3 @@
-using NcLink.Client.Connection;
 using NcLink.Client.Devices;
 using Microsoft.Extensions.Logging.Abstractions;
 

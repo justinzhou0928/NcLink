@@ -1,4 +1,4 @@
-namespace NcLink.Client.Connection;
+namespace NcLink;
 
 /// <summary>
 /// NC-Link 所有异常的共同基类。

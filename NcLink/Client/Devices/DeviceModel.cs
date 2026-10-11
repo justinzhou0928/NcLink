@@ -1,4 +1,3 @@
-using NcLink.Client.Connection;
 using NcLink.Client.Query.Engine;
 
 namespace NcLink.Client.Devices;

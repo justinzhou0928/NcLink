@@ -186,6 +186,7 @@ dotnet test --filter 'FullyQualifiedName~DeviceModelTests'
 ```
 NcLink/
 ├── NcLink/                        核心包（顶层按功能域分）
+│   ├── NcLinkException.cs         异常层次（库级公开契约）
 │   ├── NcLinkClient.cs            门面（只做装配）+ INcLinkClient
 │   ├── ServiceCollectionExtensions.cs   依赖注入注册 AddNcLink(...)
 │   ├── NcLinkHostedService.cs     宿主集成
@@ -195,7 +196,7 @@ NcLink/
 │   │   └── Engine/                JsonNcLinkCodec / NcJsonValue / NcLinkTopics
 │   ├── Logging/                   各组件一个文件，全部 [LoggerMessage] 都在这里
 │   └── Client/                    客户端（按官方手册功能面划分）
-│       ├── Connection/            机制：连接、请求关联、配置、异常（扁平）
+│       ├── Connection/            机制：连接、请求关联、配置（扁平）
 │       ├── Devices/               官方第 8 章「数据字典」（扁平）
 │       ├── Files/                 官方 5.2「获取/下发文件」（扁平）
 │       ├── Set/                   官方 5.1「设置」（扁平）

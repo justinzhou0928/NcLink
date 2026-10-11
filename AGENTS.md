@@ -44,8 +44,21 @@ python tools/test-check-structure.py  # 必须全部通过（用例如今 16 个
 `get_value` / `set_value` / `get_length` / `get_keys` / `get_attributes` / `add` / `delete`。
 新增操作前必须先在官方资料里找到出处。
 
-**机制不提升为功能域**：连接管理、请求关联、配置、异常都是实现手段，
+**机制不提升为功能域**：连接管理、请求关联、配置都是实现手段，
 收在 `Client/Connection/` 下，不与 `Query`/`Set` 平级。
+
+**但异常层次不是机制，是库级公开契约**——它放**库根**（`NcLink/NcLinkException.cs`，
+命名空间 `NcLink`），不放 `Client/Connection/`。判据是引用面：实测
+**8 个层里有 7 个**引用它（Connection 32 处、Devices 11、Query 11、Files 3、
+Set 1、Transport 2、门面与 DI 3），而它里面一半的类型（`NcLinkInvalidRequestException`、
+`NcLinkModelPathNotFoundException`、`NcLinkProtocolException`）跟"连接"毫无关系。
+
+放库根还**顺带修掉一条分层问题**：此前 `MqttTransport` 要
+`using NcLink.Client.Connection;` 才能抛 `NcLinkNotConnectedException`，
+传输层因此反向依赖 Client 层；现在它只依赖根命名空间（见 §4）。
+
+> 这也是 .NET 的惯例：`System.Text.Json.JsonException`、
+> `Newtonsoft.Json.JsonException` 都在各自库的**根命名空间**，不在子命名空间里。
 
 ---
 
@@ -68,6 +81,7 @@ python tools/test-check-structure.py  # 必须全部通过（用例如今 16 个
 
 ```
 NcLink/
+├── NcLinkException.cs                      异常层次（10 个类型，库级公开契约）
 ├── NcLinkClient.cs / INcLinkClient.cs      门面
 ├── ServiceCollectionExtensions.cs          依赖注入注册
 ├── NcLinkHostedService.cs                  宿主集成
@@ -78,7 +92,7 @@ NcLink/
 ├── Logging/                                集中式日志事件（5 个，扁平）
 ├── Transport/Mqtt/                         MQTT 传输实现（3 个，扁平）
 └── Client/
-    ├── Connection/   机制：连接、请求关联、配置、异常（7 个，扁平）
+    ├── Connection/   机制：连接、请求关联、配置（6 个，扁平）
     ├── Devices/      官方第 8 章「数据字典」（9 个，扁平）
     ├── Files/        官方 5.2「获取/下发文件」（4 个，扁平）
     ├── Set/          官方 5.1「设置」（3 个，扁平）
@@ -178,10 +192,12 @@ NcLink/
     是 `INcLinkTransport` + `FakeTransport`，**不是程序集边界**；
     `NcLink.Simulator` 用核心包却走自己的设备侧收发，也证明了这一点。
   - `MqttTransport` 的 `internal` 成员测试可见，靠核心包的 `InternalsVisibleTo NcLink.Tests`。
-  > **审计核实的例外**：类型层面成立（`Client/` 下无一处引用 MQTTnet 或 `MqttTransport`），
-  > 但还有一条未声明的第二边——`MqttTransport` 未连接时抛的是 Client 层的
-  > `NcLinkNotConnectedException`。按接口自己实现传输的第三方因此必须引用 Client 的
-  > 异常命名空间，而接口文档没写"未连接时该抛什么"。要么补文档，要么把该异常下沉到 `Protocol/`。
+  > **曾经的第二条边，已修复**：`MqttTransport` 未连接时要抛
+  > `NcLinkNotConnectedException`，而它当时在 `NcLink.Client.Connection` 下——
+  > 传输层因此反向依赖 Client 层，按接口自己实现传输的第三方也得引用 Client 的命名空间。
+  > 把异常层次移到**库根**（命名空间 `NcLink`）后，`MqttTransport` 已不再
+  > `using NcLink.Client.Connection;`，这条边消失。
+  > **`INcLinkTransport` 的文档仍然没写"未连接时该抛什么"**——这一条还欠着。
 - **请求-响应关联的两层匹配顺序不可颠倒**，且降级匹配只在响应**未携带** `@id` 时生效。
   改这里之前先读 `RequestCorrelator` 的类注释——写明了为什么。
 - **采样主题是 `Sample/{deviceId}/{channelId}`（三层，含设备 SN）**，实测官方设备确认。
