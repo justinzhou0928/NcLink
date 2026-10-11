@@ -258,6 +258,11 @@
   两条都满足。按此只有 `Client/Query`(11) 与 `Protocol`(10) 分层，
   其余 7 个域保持扁平（`Client/Devices` 9 个文件但因 `Interfaces/` 只会剩 1 个而保持扁平）。
   门槛由 `check-structure.py` 的 `[2]` 强制，**规则随代码规模自己生效**。
+- **依赖治理落地**：修正 AGENTS §7 措辞（判据从"是不是抽象包"改成"能不能被换掉"，
+  因为库里一直引着 Configuration.Binder / Options.ConfigurationExtensions，
+  规则与实际长期不符）；补 RepositoryUrl / PackageProjectUrl / Copyright；
+  新增 `THIRD-PARTY-NOTICES.md`（全部依赖许可证，随包发布的 12 个全是 MIT，
+  无 copyleft）；4 个包升级到最新（Test.Sdk 18 让 **Newtonsoft.Json 从依赖图消失**）。
 - **立场转变：从"忠实复刻官方"改为"官方正确处对齐，坏处修好"。**
   触发点是反编译了厂家 jar（`nclink-api-server-0.3.10.jar` 内含
   `nclink-core-2.1.3.jar`，142 个类），拿到了权威实现而非实测推断。

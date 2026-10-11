@@ -260,9 +260,23 @@ NcLink/
 
 ## 7. 依赖与包
 
-- **只引抽象包**：`Microsoft.Extensions.*.Abstractions`（DI/日志/配置/选项）。
-  实现包只出现在测试项目。**唯一例外是 MQTTnet**——它是 NC-Link 协议本身的
-  传输依赖（协议就定义在 MQTT + JSON 之上），不是可替换的实现选择。
+- **依赖越少越好，判据是"能不能被换掉"，不是"是不是抽象包"。**
+
+  | 类别 | 允许？ | 理由 |
+  |---|---|---|
+  | `Microsoft.Extensions.*`（一方，含 `Options` 等混合包）| ✅ | 一方、不可替换，宿主应用本来就带 |
+  | `Microsoft.Extensions.Configuration.Binder` / `Options.ConfigurationExtensions` | ✅ | 同上；`AddNcLink(section)` 的 `.Bind()` 需要它 |
+  | `MQTTnet` | ✅ | 协议就定义在 MQTT + JSON 之上，不是可替换的实现选择 |
+  | 第三方 JSON 序列化器 / 日志实现 / 映射器等 | ❌ | 这些**是可替换的实现选择**，引进来就把库绑死了 |
+  | 任意实现包 | ❌ | 只出现在可执行项目与测试项目 |
+
+  > 原措辞是"只引 `Microsoft.Extensions.*.Abstractions`，实现包只出现在测试项目"，
+  > 但库里一直引着 `Configuration.Binder` 与 `Options.ConfigurationExtensions`
+  > （两个便利重载需要）——**规则与实际长期不符**。判据改成"能否被换掉"后，
+  > 一方包不再被误伤，而"别引第三方序列化器/日志实现"这条真正要守的反而更硬。
+
+  实测依据见 `docs/json-library-evaluation.md`（换 Newtonsoft 会让线格式出错、
+  报文涨 53%、编码分配涨 4.5 倍）。
 - **能直接用 BCL 就不要手写**：十六进制用 `Convert.ToHexStringLower` /
   `FromHexString`，GB2312 用 `Encoding.GetEncoding` + `CodePagesEncodingProvider`，
   文件 IO 用 `File.*Async`，定时用 `PeriodicTimer`。

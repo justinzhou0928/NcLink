@@ -12,6 +12,9 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/justinzhou0928/NcLink</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/justinzhou0928/NcLink</PackageProjectUrl>
+    <Copyright>Copyright (c) 2026 JustiionZhou</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
